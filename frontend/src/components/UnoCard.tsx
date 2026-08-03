@@ -6,34 +6,10 @@ interface UnoCardProps {
   onClick?: () => void;
   disabled?: boolean;
   isFaceDown?: boolean;
-  index?: number; // Used to stagger deal animation
+  index?: number;
 }
 
 export default function UnoCard({ card, onClick, disabled, isFaceDown, index = 0 }: UnoCardProps) {
-  
-  // Base animation variants for cards entering/leaving the hand
-  const cardVariants = {
-    hidden: { opacity: 0, y: 100, scale: 0.5, rotate: -10 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1, 
-      rotate: 0,
-      transition: { 
-        type: 'spring', 
-        damping: 15, 
-        stiffness: 150,
-        delay: Math.min(index * 0.1, 0.5) // Stagger deal, cap at 0.5s for late draws
-      } 
-    },
-    exit: { 
-      opacity: 0, 
-      y: -150, 
-      scale: 1.2, 
-      transition: { duration: 0.2 } 
-    }
-  };
-
   if (isFaceDown || !card) {
     return (
       <motion.div 
@@ -79,12 +55,12 @@ export default function UnoCard({ card, onClick, disabled, isFaceDown, index = 0
   return (
     <motion.div 
       layout
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      initial={{ opacity: 0, y: 50, scale: 0.8 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -50, scale: 0.8 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 160, delay: Math.min(index * 0.05, 0.3) }}
       onClick={!disabled ? onClick : undefined}
-      whileHover={!disabled ? { y: -25, scale: 1.1, zIndex: 30 } : {}}
+      whileHover={!disabled ? { y: -20, scale: 1.08, zIndex: 30 } : {}}
       whileTap={!disabled ? { scale: 0.95 } : {}}
       className={`relative w-24 h-36 sm:w-32 sm:h-48 rounded-xl border-4 border-white ${bgColors[card.color]} flex flex-col items-center justify-between p-2 shadow-lg ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
       style={{ zIndex: 10 }}

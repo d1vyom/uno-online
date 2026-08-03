@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 
 type SoundType = 'draw' | 'play' | 'uno' | 'victory' | 'join' | 'leave';
 
@@ -23,6 +23,9 @@ export const AudioProvider = ({ children }: { children: ReactNode }) => {
     return saved === 'true';
   });
 
+  // Reusable Audio Element Cache to prevent DOM Audio memory leaks
+  const audioCache = useRef<Map<SoundType, HTMLAudioElement>>(new Map());
+
   useEffect(() => {
     localStorage.setItem('uno_volume', volume.toString());
   }, [volume]);
@@ -34,16 +37,21 @@ export const AudioProvider = ({ children }: { children: ReactNode }) => {
   const playSound = useCallback((sound: SoundType) => {
     if (isMuted) return;
     
-    // Expects files to be located in frontend/public/sounds/
-    const audio = new Audio(`/sounds/${sound}.mp3`);
+    let audio = audioCache.current.get(sound);
+    if (!audio) {
+      audio = new Audio(`/sounds/${sound}.mp3`);
+      audioCache.current.set(sound, audio);
+    }
+
+    audio.currentTime = 0;
     audio.volume = volume;
     
-    audio.play().catch(e => {
-      console.warn(`Audio playback failed for ${sound}. Ensure the file exists in public/sounds/.`, e);
+    audio.play().catch(() => {
+      // Quiet fail if sound file is missing or blocked by browser autoplay policy
     });
   }, [isMuted, volume]);
 
-  const toggleMute = () => setIsMuted(!isMuted);
+  const toggleMute = () => setIsMuted(prev => !prev);
 
   return (
     <AudioContext.Provider value={{ volume, setVolume, isMuted, toggleMute, playSound }}>

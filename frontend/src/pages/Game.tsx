@@ -127,8 +127,6 @@ export default function Game({ socket, userId }: GameProps) {
             Return to Home
           </motion.button>
         </motion.div>
-        
-        {/* Chat box remains accessible in Game Over screen */}
         <ChatBox socket={socket} roomId={roomId!} userId={userId} />
       </div>
     );
@@ -241,7 +239,7 @@ export default function Game({ socket, userId }: GameProps) {
         </div>
         
         <div className="flex flex-wrap justify-center gap-[-2rem] sm:gap-2 px-4 max-w-6xl">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence initial={false}>
             {gameState.hand.map((card, idx) => (
               <div key={card.id} className="-ml-6 sm:ml-0 first:ml-0 relative">
                 <UnoCard 
@@ -283,7 +281,6 @@ export default function Game({ socket, userId }: GameProps) {
         )}
       </AnimatePresence>
 
-      {/* Floating Chat Box Integration */}
       <ChatBox socket={socket} roomId={roomId!} userId={userId} />
     </div>
   );

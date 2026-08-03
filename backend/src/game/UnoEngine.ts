@@ -69,12 +69,13 @@ export class UnoEngine {
     return newDeck;
   }
 
-  private reshuffleDiscardPile() {
-    if (this.state.discardPile.length <= 1) return;
+  private reshuffleDiscardPile(): boolean {
+    if (this.state.discardPile.length <= 1) return false;
 
     const topCard = this.state.discardPile.pop()!;
     this.state.deck = this.shuffle(this.state.discardPile);
     this.state.discardPile = [topCard];
+    return true;
   }
 
   public drawCard(playerId: string): { drawnCard: Card, nextTurn: string } {
@@ -86,14 +87,20 @@ export class UnoEngine {
     if (this.state.deck.length === 0) {
       this.reshuffleDiscardPile();
     }
+    
     if (this.state.deck.length === 0) {
-      throw new Error("Deck is empty and cannot be replenished.");
+      // Safe fallback if deck and discard pile are completely exhausted
+      this.nextTurn();
+      return { 
+        drawnCard: { id: 'empty', color: 'Wild', value: '0' }, 
+        nextTurn: this.players[this.state.currentTurnIndex].id 
+      };
     }
 
     const drawnCard = this.state.deck.shift()!;
     currentPlayer.hand!.push(drawnCard);
     
-    // Reset UNO status if they draw a card
+    // Reset UNO declaration status whenever cards are added to hand
     currentPlayer.calledUno = false;
 
     this.nextTurn();
@@ -129,14 +136,12 @@ export class UnoEngine {
     this.checkWinner();
     if (this.state.winner) return;
 
-    // Automatic UNO Validation Penalty
+    // Penalty check: failing to call UNO before playing 2nd-to-last card
     if (currentPlayer.hand!.length === 1) {
       if (!currentPlayer.calledUno) {
-        // Penalty: Did not declare UNO before playing their second-to-last card
         this.drawNCards(this.state.currentTurnIndex, 2);
       }
     } else {
-      // Reset if they have more than 1 card safely
       currentPlayer.calledUno = false; 
     }
 
@@ -147,12 +152,37 @@ export class UnoEngine {
     const player = this.players.find(p => p.id === playerId);
     if (!player) throw new Error("Player not found.");
     
-    // Can only call UNO if they have 1 card, or 2 cards (preparing to play one)
     if (player.hand!.length > 2) {
       throw new Error("You can only call UNO when you have 2 or fewer cards.");
     }
     
     player.calledUno = true;
+  }
+
+  public removePlayer(playerId: string): { gameEnded: boolean; winner: string | null } {
+    const index = this.players.findIndex(p => p.id === playerId);
+    if (index === -1) return { gameEnded: !!this.state.winner, winner: this.state.winner };
+
+    const [removedPlayer] = this.players.splice(index, 1);
+    
+    // Recycle removed player's hand back into the deck
+    if (removedPlayer.hand && removedPlayer.hand.length > 0) {
+      this.state.deck.push(...removedPlayer.hand);
+      this.state.deck = this.shuffle(this.state.deck);
+    }
+
+    if (this.players.length < 2) {
+      this.state.winner = this.players.length === 1 ? this.players[0].id : null;
+      return { gameEnded: true, winner: this.state.winner };
+    }
+
+    if (index < this.state.currentTurnIndex) {
+      this.state.currentTurnIndex--;
+    } else if (this.state.currentTurnIndex >= this.players.length) {
+      this.state.currentTurnIndex = 0;
+    }
+
+    return { gameEnded: false, winner: null };
   }
 
   private isValidPlay(card: Card): boolean {
@@ -189,10 +219,15 @@ export class UnoEngine {
 
   private drawNCards(playerIndex: number, amount: number) {
     const player = this.players[playerIndex];
+    if (!player) return;
+
     for (let i = 0; i < amount; i++) {
       if (this.state.deck.length === 0) this.reshuffleDiscardPile();
       if (this.state.deck.length > 0) player.hand!.push(this.state.deck.shift()!);
     }
+    
+    // Drawing cards always resets UNO state
+    player.calledUno = false;
   }
 
   private getNextPlayerIndex(): number {
@@ -206,7 +241,7 @@ export class UnoEngine {
 
   private checkWinner() {
     const currentPlayer = this.players[this.state.currentTurnIndex];
-    if (currentPlayer.hand!.length === 0) {
+    if (currentPlayer && currentPlayer.hand!.length === 0) {
       this.state.winner = currentPlayer.id;
     }
   }

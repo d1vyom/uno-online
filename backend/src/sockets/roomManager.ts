@@ -4,30 +4,39 @@ import { UnoEngine } from '../game/UnoEngine';
 
 interface ActiveRoom extends Room {
   engine?: UnoEngine;
-  isProcessing?: boolean; // Mutex lock to prevent race conditions and duplicate actions
+  processingLock?: boolean;
 }
 
 const rooms = new Map<string, ActiveRoom>();
 const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
-
-// Spam Prevention: In-memory Rate Limiter
 const rateLimits = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 1000; // 1 second
-const MAX_EVENTS_PER_WINDOW = 8; // Max 8 socket events per second
+
+const RATE_LIMIT_WINDOW_MS = 1000;
+const MAX_EVENTS_PER_WINDOW = 8;
+
+// Periodic cleanup to prevent memory leaks in rate limits map
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, timestamps] of rateLimits.entries()) {
+    const valid = timestamps.filter(ts => ts > now - RATE_LIMIT_WINDOW_MS);
+    if (valid.length === 0) {
+      rateLimits.delete(userId);
+    } else {
+      rateLimits.set(userId, valid);
+    }
+  }
+}, 30000);
 
 const checkRateLimit = (userId: string): boolean => {
   const now = Date.now();
   const timestamps = rateLimits.get(userId) || [];
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  
-  const recentTimestamps = timestamps.filter(ts => ts > windowStart);
-  recentTimestamps.push(now);
-  rateLimits.set(userId, recentTimestamps);
+  const recent = timestamps.filter(ts => ts > now - RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  rateLimits.set(userId, recent);
 
-  return recentTimestamps.length <= MAX_EVENTS_PER_WINDOW;
+  return recent.length <= MAX_EVENTS_PER_WINDOW;
 };
 
-// Security: Payload Validation Helpers
 const isValidString = (val: any, min = 1, max = 100): boolean => {
   return typeof val === 'string' && val.trim().length >= min && val.length <= max;
 };
@@ -57,10 +66,10 @@ const broadcastGameState = (io: Server, roomId: string) => {
     const clientState = {
       topCard: state.discardPile[state.discardPile.length - 1],
       activeColor: state.activeColor,
-      currentTurnId: players[state.currentTurnIndex].id,
+      currentTurnId: players[state.currentTurnIndex] ? players[state.currentTurnIndex].id : '',
       playDirection: state.playDirection,
       winner: state.winner,
-      hand: p.hand,
+      hand: p.hand || [],
       playerStats
     };
     
@@ -71,18 +80,14 @@ const broadcastGameState = (io: Server, roomId: string) => {
 export const handleRoomEvents = (io: Server, socket: Socket) => {
   const userId = socket.handshake.auth.userId;
   
-  // Security: Reject connections without a valid userId payload
   if (!isValidString(userId, 1, 50)) {
-    console.error('[Socket] Connection rejected: Invalid or missing userId');
     socket.disconnect();
     return;
   }
 
-  // Security: Socket-level rate limiting middleware
-  socket.use((packet, next) => {
+  socket.use((_, next) => {
     if (!checkRateLimit(userId)) {
-      console.warn(`[Security] Rate limit exceeded by user: ${userId}`);
-      return next(new Error('Rate limit exceeded. Please slow down.'));
+      return next(new Error('Rate limit exceeded.'));
     }
     next();
   });
@@ -113,7 +118,13 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     const roomId = generateRoomCode();
     const player: Player = { id: userId, isConnected: true };
     
-    rooms.set(roomId, { id: roomId, hostId: userId, players: [player], chatHistory: [], isProcessing: false });
+    rooms.set(roomId, { 
+      id: roomId, 
+      hostId: userId, 
+      players: [player], 
+      chatHistory: [], 
+      processingLock: false 
+    });
     socket.join(roomId);
     
     if (callback) callback({ success: true, roomId, hostId: userId });
@@ -121,47 +132,39 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
 
   socket.on('joinRoom', (payload, callback) => {
     if (!payload || !isValidString(payload.roomId, 6, 6)) {
-      return callback?.({ success: false, message: 'Invalid room code format' });
+      return callback?.({ success: false, message: 'Invalid room code.' });
     }
     
     const roomId = payload.roomId.toUpperCase();
     const room = rooms.get(roomId);
     
-    if (!room) return callback?.({ success: false, message: 'Room not found' });
+    if (!room) return callback?.({ success: false, message: 'Room not found.' });
     if (room.players.some(p => p.id === userId)) {
       io.to(userId).emit('chatHistory', room.chatHistory);
       return callback?.({ success: true, roomId, room });
     }
-    if (room.players.length >= 4) return callback?.({ success: false, message: 'Room is full (Max 4 players)' });
-    if (room.engine) return callback?.({ success: false, message: 'Game is already in progress' });
+    if (room.players.length >= 4) return callback?.({ success: false, message: 'Room is full.' });
+    if (room.engine) return callback?.({ success: false, message: 'Game in progress.' });
 
-    room.isProcessing = true;
-    try {
-      const player: Player = { id: userId, isConnected: true };
-      room.players.push(player);
-      socket.join(roomId);
+    const player: Player = { id: userId, isConnected: true };
+    room.players.push(player);
+    socket.join(roomId);
 
-      socket.to(roomId).emit('playerJoined', { players: room.players });
-      io.to(userId).emit('chatHistory', room.chatHistory);
-      
-      if (callback) callback({ success: true, roomId, room });
-    } finally {
-      room.isProcessing = false;
-    }
+    socket.to(roomId).emit('playerJoined', { players: room.players });
+    io.to(userId).emit('chatHistory', room.chatHistory);
+    
+    if (callback) callback({ success: true, roomId, room });
   });
 
   socket.on('sendMessage', (payload, callback) => {
     if (!payload || !isValidString(payload.roomId, 6, 6) || !isValidString(payload.text, 1, 100)) {
-      return callback?.({ success: false, message: 'Invalid message payload' });
+      return callback?.({ success: false, message: 'Invalid message payload.' });
     }
 
     const { roomId, text } = payload;
     const room = rooms.get(roomId);
-    if (!room) return callback?.({ success: false, message: 'Room not found' });
-    
-    // Security: Validate sender is actually in the room
-    if (!room.players.some(p => p.id === userId)) {
-      return callback?.({ success: false, message: 'Unauthorized' });
+    if (!room || !room.players.some(p => p.id === userId)) {
+      return callback?.({ success: false, message: 'Unauthorized.' });
     }
 
     const message: ChatMessage = {
@@ -179,45 +182,35 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
   });
 
   socket.on('startGame', (payload, callback) => {
-    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload' });
+    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid room.' });
     
-    const roomId = payload.roomId;
-    const room = rooms.get(roomId);
-    
-    if (!room) return callback?.({ success: false, message: 'Room not found' });
-    if (room.hostId !== userId) return callback?.({ success: false, message: 'Only the host can start the game' });
-    if (room.players.length < 2) return callback?.({ success: false, message: 'Need at least 2 players' });
-    if (room.isProcessing) return callback?.({ success: false, message: 'Action in progress' });
+    const room = rooms.get(payload.roomId);
+    if (!room) return callback?.({ success: false, message: 'Room not found.' });
+    if (room.hostId !== userId) return callback?.({ success: false, message: 'Host authorization required.' });
+    if (room.players.length < 2) return callback?.({ success: false, message: 'Minimum 2 players required.' });
 
-    room.isProcessing = true;
     try {
       room.engine = new UnoEngine(room.players);
-      io.to(roomId).emit('gameStarted');
-      broadcastGameState(io, roomId);
+      io.to(payload.roomId).emit('gameStarted');
+      broadcastGameState(io, payload.roomId);
       if (callback) callback({ success: true });
     } catch (error: any) {
       if (callback) callback({ success: false, message: error.message });
-    } finally {
-      room.isProcessing = false;
     }
   });
 
   socket.on('playCard', (payload, callback) => {
     if (!payload || !isValidString(payload.roomId, 6, 6) || !isValidString(payload.cardId, 1, 20)) {
-      return callback?.({ success: false, message: 'Invalid payload format' });
-    }
-    
-    if (payload.declaredColor && !['Red', 'Blue', 'Green', 'Yellow'].includes(payload.declaredColor)) {
-      return callback?.({ success: false, message: 'Invalid color declared' });
+      return callback?.({ success: false, message: 'Invalid play payload.' });
     }
 
     const { roomId, cardId, declaredColor } = payload;
     const room = rooms.get(roomId);
     
-    if (!room || !room.engine) return callback?.({ success: false, message: 'Game not running' });
-    if (room.isProcessing) return callback?.({ success: false, message: 'Processing previous action' });
+    if (!room || !room.engine) return callback?.({ success: false, message: 'Game active check failed.' });
+    if (room.processingLock) return callback?.({ success: false, message: 'Action pending.' });
 
-    room.isProcessing = true;
+    room.processingLock = true;
     try {
       room.engine.playCard(userId, cardId, declaredColor);
       broadcastGameState(io, roomId);
@@ -225,61 +218,55 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     } catch (error: any) {
       if (callback) callback({ success: false, message: error.message });
     } finally {
-      room.isProcessing = false;
+      room.processingLock = false;
     }
   });
 
   socket.on('drawCard', (payload, callback) => {
-    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload' });
+    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload.' });
 
-    const roomId = payload.roomId;
-    const room = rooms.get(roomId);
-    
-    if (!room || !room.engine) return callback?.({ success: false, message: 'Game not running' });
-    if (room.isProcessing) return callback?.({ success: false, message: 'Processing previous action' });
+    const room = rooms.get(payload.roomId);
+    if (!room || !room.engine) return callback?.({ success: false, message: 'Game active check failed.' });
+    if (room.processingLock) return callback?.({ success: false, message: 'Action pending.' });
 
-    room.isProcessing = true;
+    room.processingLock = true;
     try {
       room.engine.drawCard(userId);
-      broadcastGameState(io, roomId);
+      broadcastGameState(io, payload.roomId);
       if (callback) callback({ success: true });
     } catch (error: any) {
       if (callback) callback({ success: false, message: error.message });
     } finally {
-      room.isProcessing = false;
+      room.processingLock = false;
     }
   });
 
   socket.on('callUno', (payload, callback) => {
-    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload' });
+    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload.' });
 
-    const roomId = payload.roomId;
-    const room = rooms.get(roomId);
-    
-    if (!room || !room.engine) return callback?.({ success: false, message: 'Game not running' });
-    if (room.isProcessing) return callback?.({ success: false, message: 'Processing previous action' });
+    const room = rooms.get(payload.roomId);
+    if (!room || !room.engine) return callback?.({ success: false, message: 'Game active check failed.' });
 
-    room.isProcessing = true;
     try {
       room.engine.callUno(userId);
-      io.to(roomId).emit('unoCalled', { playerId: userId });
-      broadcastGameState(io, roomId);
+      io.to(payload.roomId).emit('unoCalled', { playerId: userId });
+      broadcastGameState(io, payload.roomId);
       if (callback) callback({ success: true });
     } catch (error: any) {
       if (callback) callback({ success: false, message: error.message });
-    } finally {
-      room.isProcessing = false;
     }
   });
 
   socket.on('leaveRoom', (payload, callback) => {
-    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload' });
+    if (!payload || !isValidString(payload.roomId, 6, 6)) return callback?.({ success: false, message: 'Invalid payload.' });
     
     leaveRoomLogic(io, userId, payload.roomId);
     if (callback) callback({ success: true });
   });
 
   socket.on('disconnect', () => {
+    rateLimits.delete(userId);
+    
     for (const [roomId, room] of rooms.entries()) {
       const player = room.players.find(p => p.id === userId);
       if (player) {
@@ -303,25 +290,29 @@ const leaveRoomLogic = (io: Server, userId: string, roomId: string) => {
   const room = rooms.get(roomId);
   if (!room) return;
 
-  room.isProcessing = true;
-  try {
-    room.players = room.players.filter(p => p.id !== userId);
+  room.players = room.players.filter(p => p.id !== userId);
 
-    if (room.players.length === 0) {
-      rooms.delete(roomId);
-    } else {
-      if (room.hostId === userId) {
-        room.hostId = room.players[0].id;
-        io.to(roomId).emit('hostChanged', { hostId: room.hostId });
-      }
-      
-      if (room.engine) {
-        io.to(roomId).emit('playerDisconnectedMidGame', { leftPlayerId: userId });
-      }
-
-      io.to(roomId).emit('playerLeft', { players: room.players, leftPlayerId: userId });
+  // Synchronize player removal inside UnoEngine
+  if (room.engine) {
+    const { gameEnded } = room.engine.removePlayer(userId);
+    if (gameEnded) {
+      broadcastGameState(io, roomId);
     }
-  } finally {
-    if (rooms.has(roomId)) room.isProcessing = false;
+  }
+
+  if (room.players.length === 0) {
+    rooms.delete(roomId);
+  } else {
+    if (room.hostId === userId) {
+      room.hostId = room.players[0].id;
+      io.to(roomId).emit('hostChanged', { hostId: room.hostId });
+    }
+    
+    if (room.engine) {
+      io.to(roomId).emit('playerDisconnectedMidGame', { leftPlayerId: userId });
+      broadcastGameState(io, roomId);
+    }
+
+    io.to(roomId).emit('playerLeft', { players: room.players, leftPlayerId: userId });
   }
 };

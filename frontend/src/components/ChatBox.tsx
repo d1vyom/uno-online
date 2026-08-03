@@ -17,6 +17,9 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
   const [inputText, setInputText] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,7 +31,7 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
 
     const handleNewMessage = (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg]);
-      if (!isOpen) {
+      if (!isOpenRef.current) {
         setUnreadCount((prev) => prev + 1);
       }
     };
@@ -40,7 +43,7 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
       socket.off('chatHistory', handleChatHistory);
       socket.off('chatMessage', handleNewMessage);
     };
-  }, [socket, isOpen]);
+  }, [socket]);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,8 +69,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-      
-      {/* Floating Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
@@ -77,7 +78,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
             className="bg-gray-800 border border-gray-700 w-80 sm:w-96 rounded-2xl shadow-2xl mb-4 overflow-hidden flex flex-col h-[28rem]"
           >
-            {/* Header */}
             <div className="bg-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 💬 Room Chat
@@ -90,7 +90,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
               </button>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
               {messages.length === 0 ? (
                 <p className="text-gray-500 text-center m-auto font-medium">No messages yet. Say hi!</p>
@@ -120,7 +119,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
             <div className="bg-gray-900 p-3 border-t border-gray-700 flex flex-col gap-2">
               <div className="flex justify-between px-1">
                 {EMOJIS.map(emoji => (
@@ -155,7 +153,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
         )}
       </AnimatePresence>
 
-      {/* Toggle Button */}
       <motion.button 
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -176,7 +173,6 @@ export default function ChatBox({ socket, roomId, userId }: ChatBoxProps) {
           )}
         </AnimatePresence>
       </motion.button>
-
     </div>
   );
 }
