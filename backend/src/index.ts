@@ -1,33 +1,33 @@
-import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
-import cors from 'cors';
+import app from './app';
+import { initializeSocket } from './sockets';
+import { env } from './config/env';
 
-const app = express();
-app.use(cors());
+const startServer = () => {
+  try {
+    const httpServer = createServer(app);
+    
+    // Initialize Socket.IO
+    initializeSocket(httpServer);
 
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:3000'],
-    methods: ['GET', 'POST'],
-  },
+    httpServer.listen(env.PORT, () => {
+      console.log(`[Server] Running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+    });
+  } catch (error) {
+    console.error('[Server] Failed to start:', error);
+    process.exit(1);
+  }
+};
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]:', reason);
 });
 
-const PORT = process.env.PORT || 4000;
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running smoothly.' });
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('[Uncaught Exception]:', error);
+  process.exit(1);
 });
 
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
-
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
-});
-
-httpServer.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+startServer();
