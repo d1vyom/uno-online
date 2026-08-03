@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: uno-multiplayer-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: CORS_ORIGIN
+        # Replace this with your actual Vercel domain once deployed
+        value: https://your-frontend-domain.vercel.app
+        
