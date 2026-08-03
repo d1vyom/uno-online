@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { env } from '../config/env';
+import { handleRoomEvents } from './roomManager';
 
 export const initializeSocket = (httpServer: HttpServer): Server => {
   const io = new Server(httpServer, {
@@ -13,7 +14,8 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
   io.on('connection', (socket: Socket) => {
     console.log(`[Socket] User connected: ${socket.id}`);
 
-    // TODO: Register game event listeners here
+    // Register room management events
+    handleRoomEvents(io, socket);
     
     socket.on('error', (err) => {
       console.error(`[Socket] Error on connection ${socket.id}:`, err);
