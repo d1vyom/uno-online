@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -10,8 +10,19 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  // Generate and persist a static identity across refreshes
+  const userId = useMemo(() => {
+    let id = localStorage.getItem('uno_userId');
+    if (!id) {
+      id = Math.random().toString(36).substring(2, 12);
+      localStorage.setItem('uno_userId', id);
+    }
+    return id;
+  }, []);
+
   useEffect(() => {
-    const newSocket = io();
+    // Authenticate the connection with the persistent userId
+    const newSocket = io({ auth: { userId } });
     setSocket(newSocket);
 
     const onConnect = () => setIsConnected(true);
@@ -25,14 +36,14 @@ function App() {
       newSocket.off('disconnect', onDisconnect);
       newSocket.close();
     };
-  }, []);
+  }, [userId]);
 
   return (
     <Routes>
       <Route path="/" element={<Layout isConnected={isConnected} />}>
-        <Route index element={<Home socket={socket} />} />
-        <Route path="room/:roomId" element={<Lobby socket={socket} />} />
-        <Route path="game/:roomId" element={<Game socket={socket} />} />
+        <Route index element={<Home socket={socket} userId={userId} />} />
+        <Route path="room/:roomId" element={<Lobby socket={socket} userId={userId} />} />
+        <Route path="game/:roomId" element={<Game socket={socket} userId={userId} />} />
       </Route>
     </Routes>
   );

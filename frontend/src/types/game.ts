@@ -10,7 +10,8 @@ export interface Card {
 export interface PlayerStats {
   id: string;
   cardCount: number;
-  calledUno: boolean; // Tracking UNO call status
+  calledUno: boolean; 
+  isConnected: boolean; // Tracking if the opponent has disconnected
 }
 
 export interface ClientGameState {

@@ -8,9 +8,10 @@ export interface Card {
 }
 
 export interface Player {
-  id: string;
+  id: string; // Now represents a persistent userId, not a temporary socket.id
   hand?: Card[];
-  calledUno?: boolean; // Track if the player has declared UNO
+  calledUno?: boolean;
+  isConnected?: boolean; // Track connection status
 }
 
 export interface GameState {

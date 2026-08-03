@@ -8,9 +8,10 @@ import { useAudio } from '../contexts/AudioContext';
 
 interface GameProps {
   socket: Socket | null;
+  userId: string;
 }
 
-export default function Game({ socket }: GameProps) {
+export default function Game({ socket, userId }: GameProps) {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { playSound } = useAudio();
@@ -19,29 +20,24 @@ export default function Game({ socket }: GameProps) {
   const [wildCardId, setWildCardId] = useState<string | null>(null);
   const [showUnoAnim, setShowUnoAnim] = useState<string | null>(null);
 
-  // Refs for tracking state deltas to trigger audio
   const prevTopCardId = useRef<string | null>(null);
   const prevWinner = useRef<string | null>(null);
   const prevTotalCards = useRef<number>(0);
 
-  // Audio Effects based on state changes
   useEffect(() => {
     if (!gameState) return;
 
-    // Play card sound if top card ID changes
     if (prevTopCardId.current && gameState.topCard.id !== prevTopCardId.current) {
       playSound('play');
     }
     prevTopCardId.current = gameState.topCard.id;
 
-    // Play draw sound if the total number of cards in all players' hands increases
     const currentTotal = gameState.playerStats.reduce((sum, p) => sum + p.cardCount, 0);
     if (prevTotalCards.current && currentTotal > prevTotalCards.current) {
       playSound('draw');
     }
     prevTotalCards.current = currentTotal;
 
-    // Play victory sound if someone wins
     if (gameState.winner && gameState.winner !== prevWinner.current) {
       playSound('victory');
       prevWinner.current = gameState.winner;
@@ -57,7 +53,6 @@ export default function Game({ socket }: GameProps) {
     const handleStateUpdate = (state: ClientGameState) => setGameState(state);
     
     socket.on('gameStateUpdate', handleStateUpdate);
-    socket.on('playerDisconnectedMidGame', () => alert('A player disconnected.'));
     
     socket.on('unoCalled', ({ playerId }) => {
       playSound('uno');
@@ -67,7 +62,6 @@ export default function Game({ socket }: GameProps) {
 
     return () => {
       socket.off('gameStateUpdate', handleStateUpdate);
-      socket.off('playerDisconnectedMidGame');
       socket.off('unoCalled');
     };
   }, [socket, navigate, playSound]);
@@ -80,7 +74,7 @@ export default function Game({ socket }: GameProps) {
   };
 
   const handleCardClick = (card: any) => {
-    if (gameState?.currentTurnId !== socket?.id) return;
+    if (gameState?.currentTurnId !== userId) return;
     
     if (card.color === 'Wild') {
       setWildCardId(card.id);
@@ -90,7 +84,7 @@ export default function Game({ socket }: GameProps) {
   };
 
   const handleDrawCard = () => {
-    if (gameState?.currentTurnId !== socket?.id) return;
+    if (gameState?.currentTurnId !== userId) return;
     socket?.emit('drawCard', { roomId }, (res: any) => {
       if (!res.success) alert(res.message);
     });
@@ -104,9 +98,9 @@ export default function Game({ socket }: GameProps) {
 
   if (!gameState) return <div className="flex-grow flex items-center justify-center"><p className="text-2xl font-bold animate-pulse">Loading Game State...</p></div>;
 
-  const isMyTurn = gameState.currentTurnId === socket?.id;
-  const opponents = gameState.playerStats.filter(p => p.id !== socket?.id);
-  const myStats = gameState.playerStats.find(p => p.id === socket?.id);
+  const isMyTurn = gameState.currentTurnId === userId;
+  const opponents = gameState.playerStats.filter(p => p.id !== userId);
+  const myStats = gameState.playerStats.find(p => p.id === userId);
   const canCallUno = gameState.hand.length <= 2;
   const hasCalledUno = myStats?.calledUno;
 
@@ -121,7 +115,7 @@ export default function Game({ socket }: GameProps) {
         >
           <h1 className="text-6xl font-black mb-4 text-uno-yellow drop-shadow-lg">GAME OVER</h1>
           <h2 className="text-3xl font-bold mb-8 text-white">
-            {gameState.winner === socket?.id ? '🎉 You Won! 🎉' : `Player ${gameState.winner.substring(0, 4)} Won!`}
+            {gameState.winner === userId ? '🎉 You Won! 🎉' : `Player ${gameState.winner.substring(0, 4)} Won!`}
           </h2>
           <motion.button 
             whileHover={{ scale: 1.1 }}
@@ -139,7 +133,6 @@ export default function Game({ socket }: GameProps) {
   return (
     <div className="flex-grow flex flex-col justify-between items-center p-4 h-full relative overflow-hidden">
       
-      {/* Global UNO Animation Overlay */}
       <AnimatePresence>
         {showUnoAnim && (
           <motion.div 
@@ -156,16 +149,15 @@ export default function Game({ socket }: GameProps) {
               UNO!
             </motion.span>
             <span className="text-3xl md:text-5xl text-white font-bold mt-8 bg-gray-900/80 px-8 py-4 rounded-full border-4 border-uno-red shadow-2xl">
-              {showUnoAnim === socket?.id ? "You" : `Player ${showUnoAnim.substring(0, 4)}`} called UNO!
+              {showUnoAnim === userId ? "You" : `Player ${showUnoAnim.substring(0, 4)}`} called UNO!
             </span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Opponents Area */}
       <div className="flex gap-8 justify-center w-full mt-4">
         {opponents.map((opp, idx) => (
-          <div key={opp.id} className={`flex flex-col items-center bg-gray-900 px-6 py-4 rounded-xl border-b-4 ${gameState.currentTurnId === opp.id ? 'border-uno-yellow scale-110 shadow-lg shadow-uno-yellow/20' : 'border-gray-700'} transition-all`}>
+          <div key={opp.id} className={`flex flex-col items-center bg-gray-900 px-6 py-4 rounded-xl border-b-4 ${gameState.currentTurnId === opp.id ? 'border-uno-yellow scale-110 shadow-lg shadow-uno-yellow/20' : 'border-gray-700'} transition-all ${!opp.isConnected && 'opacity-50'}`}>
             <span className="font-bold mb-2">P{idx + 1} ({opp.id.substring(0, 4)})</span>
             <div className="flex items-center gap-2">
               <div className="w-8 h-12 bg-uno-red rounded border border-white flex items-center justify-center">
@@ -174,12 +166,12 @@ export default function Game({ socket }: GameProps) {
               <span className="text-2xl font-black text-gray-300">x {opp.cardCount}</span>
             </div>
             {opp.calledUno && <span className="bg-uno-red text-white text-[10px] px-2 py-0.5 rounded-full font-black mt-1 uppercase animate-pulse shadow-md">UNO!</span>}
-            {gameState.currentTurnId === opp.id && <span className="text-xs text-uno-yellow font-bold uppercase mt-2">Thinking...</span>}
+            {gameState.currentTurnId === opp.id && opp.isConnected && <span className="text-xs text-uno-yellow font-bold uppercase mt-2">Thinking...</span>}
+            {!opp.isConnected && <span className="text-xs text-uno-red font-bold animate-pulse mt-2">Reconnecting...</span>}
           </div>
         ))}
       </div>
 
-      {/* Center Table: Draw Pile & Discard Pile */}
       <div className="flex flex-col items-center justify-center gap-8 my-auto relative">
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -z-10 w-64 h-64 border-4 border-dashed border-gray-700 rounded-full opacity-50 flex items-center justify-center animate-[spin_10s_linear_infinite]" style={{ animationDirection: gameState.playDirection === 1 ? 'normal' : 'reverse' }}>
           <span className="absolute -top-3 bg-uno-darker px-2 text-xl">➤</span>
@@ -218,7 +210,6 @@ export default function Game({ socket }: GameProps) {
         </div>
       </div>
 
-      {/* Local Player Hand Area */}
       <div className="w-full flex flex-col items-center mb-4">
         <div className="flex justify-between items-center w-full max-w-4xl px-4 mb-4">
           <div className="flex items-center gap-3">
@@ -245,7 +236,6 @@ export default function Game({ socket }: GameProps) {
           </div>
         </div>
         
-        {/* Render Hand */}
         <div className="flex flex-wrap justify-center gap-[-2rem] sm:gap-2 px-4 max-w-6xl">
           <AnimatePresence mode="popLayout">
             {gameState.hand.map((card, idx) => (
@@ -262,7 +252,6 @@ export default function Game({ socket }: GameProps) {
         </div>
       </div>
 
-      {/* Wild Color Picker Modal Overlay */}
       <AnimatePresence>
         {wildCardId && (
           <motion.div 

@@ -6,13 +6,15 @@ import { useAudio } from '../contexts/AudioContext';
 interface Player {
   id: string;
   isReady?: boolean;
+  isConnected?: boolean;
 }
 
 interface LobbyProps {
   socket: Socket | null;
+  userId: string;
 }
 
-export default function Lobby({ socket }: LobbyProps) {
+export default function Lobby({ socket, userId }: LobbyProps) {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,7 +68,7 @@ export default function Lobby({ socket }: LobbyProps) {
     });
   };
 
-  const isHost = socket?.id === hostId;
+  const isHost = userId === hostId;
 
   return (
     <div className="flex-grow flex flex-col items-center justify-center p-4">
@@ -90,8 +92,8 @@ export default function Lobby({ socket }: LobbyProps) {
             <div 
               key={player.id} 
               className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                player.id === socket?.id ? 'bg-gray-700/60 border-gray-500' : 'bg-gray-900/50 border-gray-700'
-              }`}
+                player.id === userId ? 'bg-gray-700/60 border-gray-500' : 'bg-gray-900/50 border-gray-700'
+              } ${!player.isConnected && 'opacity-60'}`}
             >
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-inner ${
@@ -105,10 +107,13 @@ export default function Lobby({ socket }: LobbyProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-lg">
-                      {player.id === socket?.id ? 'You' : `Player ${player.id.substring(0, 4)}`}
+                      {player.id === userId ? 'You' : `Player ${player.id.substring(0, 4)}`}
                     </span>
                     {player.id === hostId && (
                       <span className="bg-uno-yellow text-gray-900 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Host</span>
+                    )}
+                    {!player.isConnected && (
+                      <span className="text-xs text-uno-red font-bold animate-pulse ml-2">Reconnecting...</span>
                     )}
                   </div>
                   <span className="text-xs text-gray-400 font-mono">{player.id}</span>
@@ -117,10 +122,10 @@ export default function Lobby({ socket }: LobbyProps) {
               
               <div className="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700">
                 <div className={`w-2.5 h-2.5 rounded-full ${
-                  (player.id === socket?.id && isReady) ? 'bg-uno-green shadow-[0_0_8px_#50b848]' : 'bg-gray-600'
+                  (player.id === userId && isReady) ? 'bg-uno-green shadow-[0_0_8px_#50b848]' : 'bg-gray-600'
                 }`}></div>
                 <span className="text-sm font-medium text-gray-300">
-                  {player.id === socket?.id && isReady ? 'Ready' : 'Not Ready'}
+                  {player.id === userId && isReady ? 'Ready' : 'Not Ready'}
                 </span>
               </div>
             </div>

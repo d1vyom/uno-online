@@ -4,9 +4,10 @@ import { Socket } from 'socket.io-client';
 
 interface HomeProps {
   socket: Socket | null;
+  userId: string;
 }
 
-export default function Home({ socket }: HomeProps) {
+export default function Home({ socket, userId }: HomeProps) {
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -16,9 +17,8 @@ export default function Home({ socket }: HomeProps) {
     
     socket.emit('createRoom', (response: { success: boolean; roomId: string; hostId: string }) => {
       if (response.success) {
-        // Pass the initial room state through React Router state
         navigate(`/room/${response.roomId}`, {
-          state: { hostId: response.hostId, players: [{ id: socket.id }] },
+          state: { hostId: response.hostId, players: [{ id: userId, isConnected: true }] },
         });
       }
     });
