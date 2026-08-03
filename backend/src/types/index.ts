@@ -9,15 +9,16 @@ export interface Card {
 
 export interface Player {
   id: string;
-  hand?: Card[]; // Added for game logic
+  hand?: Card[];
+  calledUno?: boolean; // Track if the player has declared UNO
 }
 
 export interface GameState {
   deck: Card[];
   discardPile: Card[];
   currentTurnIndex: number;
-  playDirection: number; // 1 for clockwise, -1 for counter-clockwise
-  activeColor: CardColor; // Track current color (crucial for Wilds)
+  playDirection: number;
+  activeColor: CardColor;
   winner: string | null;
 }
 

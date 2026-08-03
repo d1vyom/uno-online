@@ -9,8 +9,7 @@ export class UnoEngine {
       throw new Error("UNO requires 2 to 4 players.");
     }
     
-    // Deep copy players to avoid mutating original room state before game starts
-    this.players = players.map(p => ({ ...p, hand: [] }));
+    this.players = players.map(p => ({ ...p, hand: [], calledUno: false }));
     this.state = this.initializeGame();
   }
 
@@ -18,15 +17,11 @@ export class UnoEngine {
     let deck = this.buildDeck();
     deck = this.shuffle(deck);
 
-    // Deal 7 cards to each player
     this.players.forEach(player => {
       player.hand = deck.splice(0, 7);
     });
 
-    // Flip first card for discard pile
     let firstCard = deck.shift()!;
-    
-    // Ensure the first card isn't a Wild Draw Four (Standard UNO rule)
     while (firstCard.value === 'WildDrawFour') {
       deck.push(firstCard);
       deck = this.shuffle(deck);
@@ -38,7 +33,7 @@ export class UnoEngine {
       discardPile: [firstCard],
       currentTurnIndex: 0,
       playDirection: 1,
-      activeColor: firstCard.color === 'Wild' ? 'Red' : firstCard.color, // Fallback red if Wild is first
+      activeColor: firstCard.color === 'Wild' ? 'Red' : firstCard.color,
       winner: null,
     };
   }
@@ -49,10 +44,7 @@ export class UnoEngine {
     let idCounter = 0;
 
     for (const color of colors) {
-      // One 0 card per color
       deck.push({ id: `c_${idCounter++}`, color, value: '0' });
-      
-      // Two of each 1-9 and action cards per color
       const values: CardValue[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Reverse', 'DrawTwo'];
       for (const value of values) {
         deck.push({ id: `c_${idCounter++}`, color, value });
@@ -60,7 +52,6 @@ export class UnoEngine {
       }
     }
 
-    // Four Wild and Four Wild Draw Four cards
     for (let i = 0; i < 4; i++) {
       deck.push({ id: `c_${idCounter++}`, color: 'Wild', value: 'Wild' });
       deck.push({ id: `c_${idCounter++}`, color: 'Wild', value: 'WildDrawFour' });
@@ -79,7 +70,7 @@ export class UnoEngine {
   }
 
   private reshuffleDiscardPile() {
-    if (this.state.discardPile.length <= 1) return; // Cannot reshuffle if pile is empty/1
+    if (this.state.discardPile.length <= 1) return;
 
     const topCard = this.state.discardPile.pop()!;
     this.state.deck = this.shuffle(this.state.discardPile);
@@ -95,15 +86,16 @@ export class UnoEngine {
     if (this.state.deck.length === 0) {
       this.reshuffleDiscardPile();
     }
-
     if (this.state.deck.length === 0) {
       throw new Error("Deck is empty and cannot be replenished.");
     }
 
     const drawnCard = this.state.deck.shift()!;
     currentPlayer.hand!.push(drawnCard);
+    
+    // Reset UNO status if they draw a card
+    currentPlayer.calledUno = false;
 
-    // End turn after drawing
     this.nextTurn();
     
     return { 
@@ -126,12 +118,10 @@ export class UnoEngine {
     if (!this.isValidPlay(cardToPlay)) {
       throw new Error("Invalid card play. Does not match color or value.");
     }
-
     if (cardToPlay.color === 'Wild' && (!declaredColor || declaredColor === 'Wild')) {
       throw new Error("Must declare a valid color when playing a Wild card.");
     }
 
-    // Execute play
     currentPlayer.hand!.splice(cardIndex, 1);
     this.state.discardPile.push(cardToPlay);
     this.state.activeColor = cardToPlay.color === 'Wild' ? declaredColor! : cardToPlay.color;
@@ -139,12 +129,34 @@ export class UnoEngine {
     this.checkWinner();
     if (this.state.winner) return;
 
+    // Automatic UNO Validation Penalty
+    if (currentPlayer.hand!.length === 1) {
+      if (!currentPlayer.calledUno) {
+        // Penalty: Did not declare UNO before playing their second-to-last card
+        this.drawNCards(this.state.currentTurnIndex, 2);
+      }
+    } else {
+      // Reset if they have more than 1 card safely
+      currentPlayer.calledUno = false; 
+    }
+
     this.applyCardEffect(cardToPlay);
+  }
+
+  public callUno(playerId: string) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) throw new Error("Player not found.");
+    
+    // Can only call UNO if they have 1 card, or 2 cards (preparing to play one)
+    if (player.hand!.length > 2) {
+      throw new Error("You can only call UNO when you have 2 or fewer cards.");
+    }
+    
+    player.calledUno = true;
   }
 
   private isValidPlay(card: Card): boolean {
     if (card.color === 'Wild') return true;
-    
     const topCard = this.state.discardPile[this.state.discardPile.length - 1];
     return card.color === this.state.activeColor || card.value === topCard.value;
   }
@@ -155,9 +167,7 @@ export class UnoEngine {
 
     if (card.value === 'Reverse') {
       this.state.playDirection *= -1;
-      if (this.players.length === 2) {
-        skipNext = true; // In 2-player UNO, Reverse acts as a Skip
-      }
+      if (this.players.length === 2) skipNext = true;
     } else if (card.value === 'Skip') {
       skipNext = true;
     } else if (card.value === 'DrawTwo') {
@@ -173,22 +183,15 @@ export class UnoEngine {
       this.drawNCards(targetIndex, nextPlayerForcedDraw);
     }
 
-    this.nextTurn(); // Standard turn advance
-
-    if (skipNext) {
-      this.nextTurn(); // Move past the skipped/punished player
-    }
+    this.nextTurn();
+    if (skipNext) this.nextTurn();
   }
 
   private drawNCards(playerIndex: number, amount: number) {
     const player = this.players[playerIndex];
     for (let i = 0; i < amount; i++) {
-      if (this.state.deck.length === 0) {
-        this.reshuffleDiscardPile();
-      }
-      if (this.state.deck.length > 0) {
-        player.hand!.push(this.state.deck.shift()!);
-      }
+      if (this.state.deck.length === 0) this.reshuffleDiscardPile();
+      if (this.state.deck.length > 0) player.hand!.push(this.state.deck.shift()!);
     }
   }
 
@@ -208,11 +211,6 @@ export class UnoEngine {
     }
   }
 
-  public getState(): GameState {
-    return this.state;
-  }
-
-  public getPlayers(): Player[] {
-    return this.players;
-  }
+  public getState(): GameState { return this.state; }
+  public getPlayers(): Player[] { return this.players; }
 }

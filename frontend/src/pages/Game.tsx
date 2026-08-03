@@ -12,7 +12,8 @@ export default function Game({ socket }: GameProps) {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [gameState, setGameState] = useState<ClientGameState | null>(null);
-  const [wildCardId, setWildCardId] = useState<string | null>(null); // Tracks card ID waiting for color selection
+  const [wildCardId, setWildCardId] = useState<string | null>(null);
+  const [showUnoAnim, setShowUnoAnim] = useState<string | null>(null);
 
   useEffect(() => {
     if (!socket) {
@@ -24,16 +25,21 @@ export default function Game({ socket }: GameProps) {
     
     socket.on('gameStateUpdate', handleStateUpdate);
     socket.on('playerDisconnectedMidGame', () => alert('A player disconnected.'));
+    socket.on('unoCalled', ({ playerId }) => {
+      setShowUnoAnim(playerId);
+      setTimeout(() => setShowUnoAnim(null), 2500); // Hide animation after 2.5s
+    });
 
     return () => {
       socket.off('gameStateUpdate', handleStateUpdate);
       socket.off('playerDisconnectedMidGame');
+      socket.off('unoCalled');
     };
   }, [socket, navigate]);
 
   const handlePlayCard = (cardId: string, declaredColor?: CardColor) => {
     socket?.emit('playCard', { roomId, cardId, declaredColor }, (res: any) => {
-      if (!res.success) alert(res.message); // Basic error handling
+      if (!res.success) alert(res.message); 
     });
     setWildCardId(null);
   };
@@ -55,10 +61,19 @@ export default function Game({ socket }: GameProps) {
     });
   };
 
+  const handleCallUno = () => {
+    socket?.emit('callUno', { roomId }, (res: any) => {
+      if (!res.success) alert(res.message);
+    });
+  };
+
   if (!gameState) return <div className="flex-grow flex items-center justify-center"><p className="text-2xl font-bold animate-pulse">Loading Game State...</p></div>;
 
   const isMyTurn = gameState.currentTurnId === socket?.id;
   const opponents = gameState.playerStats.filter(p => p.id !== socket?.id);
+  const myStats = gameState.playerStats.find(p => p.id === socket?.id);
+  const canCallUno = gameState.hand.length <= 2;
+  const hasCalledUno = myStats?.calledUno;
 
   if (gameState.winner) {
     return (
@@ -73,8 +88,20 @@ export default function Game({ socket }: GameProps) {
   }
 
   return (
-    <div className="flex-grow flex flex-col justify-between items-center p-4 h-full relative">
+    <div className="flex-grow flex flex-col justify-between items-center p-4 h-full relative overflow-hidden">
       
+      {/* Global UNO Animation Overlay */}
+      {showUnoAnim && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-sm">
+          <span className="text-8xl md:text-[12rem] font-black text-uno-red drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] italic tracking-tighter animate-[bounce_1s_ease-in-out_infinite]">
+            UNO!
+          </span>
+          <span className="text-3xl md:text-5xl text-white font-bold mt-8 bg-gray-900/80 px-8 py-4 rounded-full border-4 border-uno-red shadow-2xl">
+            {showUnoAnim === socket?.id ? "You" : `Player ${showUnoAnim.substring(0, 4)}`} called UNO!
+          </span>
+        </div>
+      )}
+
       {/* Opponents Area */}
       <div className="flex gap-8 justify-center w-full mt-4">
         {opponents.map((opp, idx) => (
@@ -86,6 +113,7 @@ export default function Game({ socket }: GameProps) {
               </div>
               <span className="text-2xl font-black text-gray-300">x {opp.cardCount}</span>
             </div>
+            {opp.calledUno && <span className="bg-uno-red text-white text-[10px] px-2 py-0.5 rounded-full font-black mt-1 uppercase animate-pulse shadow-md">UNO!</span>}
             {gameState.currentTurnId === opp.id && <span className="text-xs text-uno-yellow font-bold uppercase mt-2">Thinking...</span>}
           </div>
         ))}
@@ -93,13 +121,10 @@ export default function Game({ socket }: GameProps) {
 
       {/* Center Table: Draw Pile & Discard Pile */}
       <div className="flex flex-col items-center justify-center gap-8 my-auto relative">
-        
-        {/* Play Direction Indicator */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -z-10 w-64 h-64 border-4 border-dashed border-gray-700 rounded-full opacity-50 flex items-center justify-center animate-[spin_10s_linear_infinite]" style={{ animationDirection: gameState.playDirection === 1 ? 'normal' : 'reverse' }}>
           <span className="absolute -top-3 bg-uno-darker px-2 text-xl">➤</span>
         </div>
 
-        {/* Current Active Color Banner */}
         <div className="bg-gray-800 px-6 py-2 rounded-full border border-gray-700 shadow-md flex items-center gap-3">
           <span className="font-bold text-gray-400 text-sm uppercase tracking-wider">Active Color</span>
           <div className={`w-6 h-6 rounded-full shadow-inner ${
@@ -111,13 +136,11 @@ export default function Game({ socket }: GameProps) {
         </div>
 
         <div className="flex gap-8 sm:gap-16 items-center">
-          {/* Draw Pile */}
           <div className="flex flex-col items-center gap-3">
             <UnoCard isFaceDown disabled={!isMyTurn} onClick={handleDrawCard} />
             <span className="font-bold text-gray-400">Draw Pile</span>
           </div>
 
-          {/* Discard Pile */}
           <div className="flex flex-col items-center gap-3">
             <UnoCard card={gameState.topCard} disabled />
             <span className="font-bold text-gray-400">Discard Pile</span>
@@ -131,8 +154,23 @@ export default function Game({ socket }: GameProps) {
           <div className="flex items-center gap-3">
             <h3 className="text-2xl font-black">Your Hand</h3>
             {isMyTurn && <span className="bg-uno-green text-white px-3 py-1 rounded-full text-sm font-bold uppercase animate-pulse shadow-[0_0_10px_#50b848]">Your Turn</span>}
+            {hasCalledUno && <span className="bg-uno-red text-white px-3 py-1 rounded-full text-sm font-bold uppercase shadow-md">UNO Called</span>}
           </div>
-          <span className="text-gray-400 font-bold">{gameState.hand.length} Cards</span>
+          
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={handleCallUno}
+              disabled={!canCallUno || hasCalledUno}
+              className={`px-6 py-2 rounded-xl font-black text-xl transition-all shadow-lg border-2 ${
+                canCallUno && !hasCalledUno
+                  ? 'bg-uno-red text-white border-white hover:scale-110 hover:shadow-red-500/50 animate-bounce' 
+                  : 'bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed opacity-50'
+              }`}
+            >
+              UNO!
+            </button>
+            <span className="text-gray-400 font-bold">{gameState.hand.length} Cards</span>
+          </div>
         </div>
         
         {/* Render Hand */}

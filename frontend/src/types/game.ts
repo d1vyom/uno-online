@@ -10,6 +10,7 @@ export interface Card {
 export interface PlayerStats {
   id: string;
   cardCount: number;
+  calledUno: boolean; // Tracking UNO call status
 }
 
 export interface ClientGameState {
