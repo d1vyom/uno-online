@@ -8,10 +8,17 @@ export interface Card {
 }
 
 export interface Player {
-  id: string; // Now represents a persistent userId, not a temporary socket.id
+  id: string;
   hand?: Card[];
   calledUno?: boolean;
-  isConnected?: boolean; // Track connection status
+  isConnected?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: number;
 }
 
 export interface GameState {
@@ -27,5 +34,6 @@ export interface Room {
   id: string;
   hostId: string;
   players: Player[];
+  chatHistory: ChatMessage[];
   gameState?: GameState;
 }

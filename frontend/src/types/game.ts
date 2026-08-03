@@ -11,7 +11,14 @@ export interface PlayerStats {
   id: string;
   cardCount: number;
   calledUno: boolean; 
-  isConnected: boolean; // Tracking if the opponent has disconnected
+  isConnected: boolean; 
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: number;
 }
 
 export interface ClientGameState {

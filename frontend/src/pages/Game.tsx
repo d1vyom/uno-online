@@ -4,6 +4,7 @@ import { Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClientGameState, CardColor } from '../types/game';
 import UnoCard from '../components/UnoCard';
+import ChatBox from '../components/ChatBox';
 import { useAudio } from '../contexts/AudioContext';
 
 interface GameProps {
@@ -126,6 +127,9 @@ export default function Game({ socket, userId }: GameProps) {
             Return to Home
           </motion.button>
         </motion.div>
+        
+        {/* Chat box remains accessible in Game Over screen */}
+        <ChatBox socket={socket} roomId={roomId!} userId={userId} />
       </div>
     );
   }
@@ -279,6 +283,8 @@ export default function Game({ socket, userId }: GameProps) {
         )}
       </AnimatePresence>
 
+      {/* Floating Chat Box Integration */}
+      <ChatBox socket={socket} roomId={roomId!} userId={userId} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Socket, Server } from 'socket.io';
-import { Room, Player } from '../types';
+import { Room, Player, ChatMessage } from '../types';
 import { UnoEngine } from '../game/UnoEngine';
 
 interface ActiveRoom extends Room {
@@ -41,7 +41,6 @@ const broadcastGameState = (io: Server, roomId: string) => {
       playerStats
     };
     
-    // Send directly to the userId's personal room
     io.to(p.id).emit('gameStateUpdate', clientState);
   });
 };
@@ -54,25 +53,25 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     return;
   }
 
-  // Bind the dynamically changing socket to a permanent room identified by userId
   socket.join(userId);
 
-  // Auto-Reconnect Logic: Check if the user is already in an active room
   for (const [roomId, room] of rooms.entries()) {
     const player = room.players.find(p => p.id === userId);
     if (player) {
       player.isConnected = true;
       socket.join(roomId);
       
-      // Clear pending drop timeout
       if (disconnectTimeouts.has(userId)) {
         clearTimeout(disconnectTimeouts.get(userId)!);
         disconnectTimeouts.delete(userId);
         console.log(`[Room] ${userId} reconnected to ${roomId}, timeout cancelled.`);
       }
 
-      // Restore state
       io.to(roomId).emit('playerJoined', { players: room.players });
+      
+      // Restore chat history on reconnect
+      io.to(userId).emit('chatHistory', room.chatHistory);
+      
       if (room.engine) {
         broadcastGameState(io, roomId);
       }
@@ -83,7 +82,7 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     const roomId = generateRoomCode();
     const player: Player = { id: userId, isConnected: true };
     
-    rooms.set(roomId, { id: roomId, hostId: userId, players: [player] });
+    rooms.set(roomId, { id: roomId, hostId: userId, players: [player], chatHistory: [] });
     socket.join(roomId);
     
     console.log(`[Room] ${userId} created room ${roomId}`);
@@ -95,7 +94,7 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     if (!room) return callback?.({ success: false, message: 'Room not found' });
     
     if (room.players.some(p => p.id === userId)) {
-      // Re-joining via code input while technically already in the room
+      io.to(userId).emit('chatHistory', room.chatHistory);
       return callback?.({ success: true, roomId, room });
     }
 
@@ -107,9 +106,33 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
     socket.join(roomId);
 
     socket.to(roomId).emit('playerJoined', { players: room.players });
+    
+    // Provide chat history to the newly joined player
+    io.to(userId).emit('chatHistory', room.chatHistory);
+    
     console.log(`[Room] ${userId} joined room ${roomId}`);
     if (callback) callback({ success: true, roomId, room });
   });
+
+  // --- CHAT EVENTS ---
+  socket.on('sendMessage', ({ roomId, text }, callback) => {
+    const room = rooms.get(roomId);
+    if (!room) return callback?.({ success: false, message: 'Room not found' });
+
+    const message: ChatMessage = {
+      id: Math.random().toString(36).substring(2, 10),
+      senderId: userId,
+      text: text.trim(),
+      timestamp: Date.now()
+    };
+
+    room.chatHistory.push(message);
+    if (room.chatHistory.length > 100) room.chatHistory.shift(); // Keep history size manageable
+
+    io.to(roomId).emit('chatMessage', message);
+    if (callback) callback({ success: true });
+  });
+  // -------------------
 
   socket.on('startGame', ({ roomId }, callback) => {
     const room = rooms.get(roomId);
@@ -182,7 +205,6 @@ export const handleRoomEvents = (io: Server, socket: Socket) => {
         io.to(roomId).emit('playerJoined', { players: room.players }); 
         if (room.engine) broadcastGameState(io, roomId);
 
-        // 30-Second Disconnect Grace Period
         const timeout = setTimeout(() => {
           leaveRoomLogic(io, userId, roomId);
           disconnectTimeouts.delete(userId);

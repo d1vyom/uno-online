@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Socket } from 'socket.io-client';
 import { useAudio } from '../contexts/AudioContext';
+import ChatBox from '../components/ChatBox';
 
 interface Player {
   id: string;
@@ -172,6 +173,9 @@ export default function Lobby({ socket, userId }: LobbyProps) {
           </div>
         </div>
       </div>
+      
+      {/* Floating Chat Box Integration */}
+      <ChatBox socket={socket} roomId={roomId!} userId={userId} />
     </div>
   );
 }
