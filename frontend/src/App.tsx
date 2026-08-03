@@ -3,10 +3,10 @@ import { io, Socket } from 'socket.io-client';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
+import Lobby from './pages/Lobby';
 
 function App() {
-  // Omitted the first variable from destructuring to resolve ts(6133)
-  const [, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout isConnected={isConnected} />}>
-        <Route index element={<Home />} />
+        <Route index element={<Home socket={socket} />} />
+        <Route path="room/:roomId" element={<Lobby socket={socket} />} />
       </Route>
     </Routes>
   );
