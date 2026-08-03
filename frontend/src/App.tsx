@@ -10,7 +10,6 @@ function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Generate and persist a static identity across refreshes
   const userId = useMemo(() => {
     let id = localStorage.getItem('uno_userId');
     if (!id) {
@@ -21,8 +20,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Authenticate the connection with the persistent userId
-    const newSocket = io({ auth: { userId } });
+    // In production, use the VITE_BACKEND_URL. 
+    // In development, undefined falls back to the Vite proxy in vite.config.ts.
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || undefined;
+    const newSocket = io(backendUrl, { auth: { userId } });
+    
     setSocket(newSocket);
 
     const onConnect = () => setIsConnected(true);
