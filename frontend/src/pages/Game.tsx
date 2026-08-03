@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClientGameState, CardColor } from '../types/game';
 import UnoCard from '../components/UnoCard';
+import { useAudio } from '../contexts/AudioContext';
 
 interface GameProps {
   socket: Socket | null;
@@ -12,9 +13,40 @@ interface GameProps {
 export default function Game({ socket }: GameProps) {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { playSound } = useAudio();
+  
   const [gameState, setGameState] = useState<ClientGameState | null>(null);
   const [wildCardId, setWildCardId] = useState<string | null>(null);
   const [showUnoAnim, setShowUnoAnim] = useState<string | null>(null);
+
+  // Refs for tracking state deltas to trigger audio
+  const prevTopCardId = useRef<string | null>(null);
+  const prevWinner = useRef<string | null>(null);
+  const prevTotalCards = useRef<number>(0);
+
+  // Audio Effects based on state changes
+  useEffect(() => {
+    if (!gameState) return;
+
+    // Play card sound if top card ID changes
+    if (prevTopCardId.current && gameState.topCard.id !== prevTopCardId.current) {
+      playSound('play');
+    }
+    prevTopCardId.current = gameState.topCard.id;
+
+    // Play draw sound if the total number of cards in all players' hands increases
+    const currentTotal = gameState.playerStats.reduce((sum, p) => sum + p.cardCount, 0);
+    if (prevTotalCards.current && currentTotal > prevTotalCards.current) {
+      playSound('draw');
+    }
+    prevTotalCards.current = currentTotal;
+
+    // Play victory sound if someone wins
+    if (gameState.winner && gameState.winner !== prevWinner.current) {
+      playSound('victory');
+      prevWinner.current = gameState.winner;
+    }
+  }, [gameState, playSound]);
 
   useEffect(() => {
     if (!socket) {
@@ -26,7 +58,9 @@ export default function Game({ socket }: GameProps) {
     
     socket.on('gameStateUpdate', handleStateUpdate);
     socket.on('playerDisconnectedMidGame', () => alert('A player disconnected.'));
+    
     socket.on('unoCalled', ({ playerId }) => {
+      playSound('uno');
       setShowUnoAnim(playerId);
       setTimeout(() => setShowUnoAnim(null), 2500);
     });
@@ -36,7 +70,7 @@ export default function Game({ socket }: GameProps) {
       socket.off('playerDisconnectedMidGame');
       socket.off('unoCalled');
     };
-  }, [socket, navigate]);
+  }, [socket, navigate, playSound]);
 
   const handlePlayCard = (cardId: string, declaredColor?: CardColor) => {
     socket?.emit('playCard', { roomId, cardId, declaredColor }, (res: any) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Socket } from 'socket.io-client';
+import { useAudio } from '../contexts/AudioContext';
 
 interface Player {
   id: string;
@@ -15,6 +16,7 @@ export default function Lobby({ socket }: LobbyProps) {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { playSound } = useAudio();
   
   const [players, setPlayers] = useState<Player[]>(location.state?.players || []);
   const [hostId, setHostId] = useState<string>(location.state?.hostId || '');
@@ -26,11 +28,18 @@ export default function Lobby({ socket }: LobbyProps) {
       return;
     }
 
-    const handlePlayerJoined = ({ players }: { players: Player[] }) => setPlayers(players);
-    const handlePlayerLeft = ({ players }: { players: Player[] }) => setPlayers(players);
+    const handlePlayerJoined = ({ players }: { players: Player[] }) => {
+      setPlayers(players);
+      playSound('join');
+    };
+    
+    const handlePlayerLeft = ({ players }: { players: Player[] }) => {
+      setPlayers(players);
+      playSound('leave');
+    };
+    
     const handleHostChanged = ({ hostId }: { hostId: string }) => setHostId(hostId);
     
-    // Redirect to the Game screen when the host starts the game
     const handleGameStarted = () => navigate(`/game/${roomId}`);
 
     socket.on('playerJoined', handlePlayerJoined);
@@ -44,7 +53,7 @@ export default function Lobby({ socket }: LobbyProps) {
       socket.off('hostChanged', handleHostChanged);
       socket.off('gameStarted', handleGameStarted);
     };
-  }, [socket, roomId, navigate]);
+  }, [socket, roomId, navigate, playSound]);
 
   const handleLeave = () => {
     socket?.emit('leaveRoom', { roomId });
