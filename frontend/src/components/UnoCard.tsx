@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Card } from '../types/game';
 
 interface UnoCardProps {
@@ -5,19 +6,46 @@ interface UnoCardProps {
   onClick?: () => void;
   disabled?: boolean;
   isFaceDown?: boolean;
+  index?: number; // Used to stagger deal animation
 }
 
-export default function UnoCard({ card, onClick, disabled, isFaceDown }: UnoCardProps) {
+export default function UnoCard({ card, onClick, disabled, isFaceDown, index = 0 }: UnoCardProps) {
+  
+  // Base animation variants for cards entering/leaving the hand
+  const cardVariants = {
+    hidden: { opacity: 0, y: 100, scale: 0.5, rotate: -10 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1, 
+      rotate: 0,
+      transition: { 
+        type: 'spring', 
+        damping: 15, 
+        stiffness: 150,
+        delay: Math.min(index * 0.1, 0.5) // Stagger deal, cap at 0.5s for late draws
+      } 
+    },
+    exit: { 
+      opacity: 0, 
+      y: -150, 
+      scale: 1.2, 
+      transition: { duration: 0.2 } 
+    }
+  };
+
   if (isFaceDown || !card) {
     return (
-      <div 
+      <motion.div 
         onClick={!disabled ? onClick : undefined}
-        className={`w-24 h-36 sm:w-32 sm:h-48 rounded-xl border-4 border-white bg-gray-900 flex items-center justify-center shadow-lg transform transition-transform ${!disabled && 'hover:-translate-y-2 cursor-pointer'}`}
+        whileHover={!disabled ? { y: -10, scale: 1.05 } : {}}
+        whileTap={!disabled ? { scale: 0.95 } : {}}
+        className={`w-24 h-36 sm:w-32 sm:h-48 rounded-xl border-4 border-white bg-gray-900 flex items-center justify-center shadow-lg ${!disabled ? 'cursor-pointer' : 'opacity-80'}`}
       >
         <div className="bg-uno-red text-white w-20 h-28 sm:w-28 sm:h-40 rounded-lg flex items-center justify-center border-2 border-white transform -rotate-12">
           <span className="text-3xl sm:text-4xl font-black italic tracking-tighter drop-shadow-md">UNO</span>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -49,9 +77,17 @@ export default function UnoCard({ card, onClick, disabled, isFaceDown }: UnoCard
   };
 
   return (
-    <div 
+    <motion.div 
+      layout
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       onClick={!disabled ? onClick : undefined}
-      className={`w-24 h-36 sm:w-32 sm:h-48 rounded-xl border-4 border-white ${bgColors[card.color]} flex flex-col items-center justify-between p-2 shadow-lg transform transition-transform ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:-translate-y-6 cursor-pointer hover:shadow-2xl hover:z-10 relative'}`}
+      whileHover={!disabled ? { y: -25, scale: 1.1, zIndex: 30 } : {}}
+      whileTap={!disabled ? { scale: 0.95 } : {}}
+      className={`relative w-24 h-36 sm:w-32 sm:h-48 rounded-xl border-4 border-white ${bgColors[card.color]} flex flex-col items-center justify-between p-2 shadow-lg ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+      style={{ zIndex: 10 }}
     >
       <div className="w-full text-left text-white font-bold text-lg sm:text-xl leading-none drop-shadow-md">{displayValue()}</div>
       
@@ -62,6 +98,6 @@ export default function UnoCard({ card, onClick, disabled, isFaceDown }: UnoCard
       </div>
       
       <div className="w-full text-right text-white font-bold text-lg sm:text-xl leading-none transform rotate-180 drop-shadow-md">{displayValue()}</div>
-    </div>
+    </motion.div>
   );
 }

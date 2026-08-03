@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Socket } from 'socket.io-client';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ClientGameState, CardColor } from '../types/game';
 import UnoCard from '../components/UnoCard';
 
@@ -27,7 +28,7 @@ export default function Game({ socket }: GameProps) {
     socket.on('playerDisconnectedMidGame', () => alert('A player disconnected.'));
     socket.on('unoCalled', ({ playerId }) => {
       setShowUnoAnim(playerId);
-      setTimeout(() => setShowUnoAnim(null), 2500); // Hide animation after 2.5s
+      setTimeout(() => setShowUnoAnim(null), 2500);
     });
 
     return () => {
@@ -77,12 +78,26 @@ export default function Game({ socket }: GameProps) {
 
   if (gameState.winner) {
     return (
-      <div className="flex-grow flex flex-col items-center justify-center">
-        <h1 className="text-6xl font-black mb-4 text-uno-yellow drop-shadow-lg">GAME OVER</h1>
-        <h2 className="text-3xl font-bold mb-8">
-          {gameState.winner === socket?.id ? '🎉 You Won! 🎉' : `Player ${gameState.winner.substring(0, 4)} Won!`}
-        </h2>
-        <button onClick={() => navigate('/')} className="bg-gray-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-700 transition">Return to Home</button>
+      <div className="flex-grow flex flex-col items-center justify-center relative overflow-hidden">
+        <motion.div 
+          initial={{ scale: 0, opacity: 0, rotate: -180 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ type: 'spring', damping: 12, stiffness: 100 }}
+          className="flex flex-col items-center"
+        >
+          <h1 className="text-6xl font-black mb-4 text-uno-yellow drop-shadow-lg">GAME OVER</h1>
+          <h2 className="text-3xl font-bold mb-8 text-white">
+            {gameState.winner === socket?.id ? '🎉 You Won! 🎉' : `Player ${gameState.winner.substring(0, 4)} Won!`}
+          </h2>
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate('/')} 
+            className="bg-gray-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-700 transition shadow-xl"
+          >
+            Return to Home
+          </motion.button>
+        </motion.div>
       </div>
     );
   }
@@ -91,16 +106,27 @@ export default function Game({ socket }: GameProps) {
     <div className="flex-grow flex flex-col justify-between items-center p-4 h-full relative overflow-hidden">
       
       {/* Global UNO Animation Overlay */}
-      {showUnoAnim && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-sm">
-          <span className="text-8xl md:text-[12rem] font-black text-uno-red drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] italic tracking-tighter animate-[bounce_1s_ease-in-out_infinite]">
-            UNO!
-          </span>
-          <span className="text-3xl md:text-5xl text-white font-bold mt-8 bg-gray-900/80 px-8 py-4 rounded-full border-4 border-uno-red shadow-2xl">
-            {showUnoAnim === socket?.id ? "You" : `Player ${showUnoAnim.substring(0, 4)}`} called UNO!
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {showUnoAnim && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.5 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-sm"
+          >
+            <motion.span 
+              animate={{ y: [0, -20, 0] }}
+              transition={{ repeat: Infinity, duration: 1 }}
+              className="text-8xl md:text-[12rem] font-black text-uno-red drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] italic tracking-tighter"
+            >
+              UNO!
+            </motion.span>
+            <span className="text-3xl md:text-5xl text-white font-bold mt-8 bg-gray-900/80 px-8 py-4 rounded-full border-4 border-uno-red shadow-2xl">
+              {showUnoAnim === socket?.id ? "You" : `Player ${showUnoAnim.substring(0, 4)}`} called UNO!
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Opponents Area */}
       <div className="flex gap-8 justify-center w-full mt-4">
@@ -141,9 +167,19 @@ export default function Game({ socket }: GameProps) {
             <span className="font-bold text-gray-400">Draw Pile</span>
           </div>
 
-          <div className="flex flex-col items-center gap-3">
-            <UnoCard card={gameState.topCard} disabled />
-            <span className="font-bold text-gray-400">Discard Pile</span>
+          <div className="flex flex-col items-center gap-3 relative w-24 h-36 sm:w-32 sm:h-48">
+            <AnimatePresence mode="popLayout">
+              <motion.div 
+                key={gameState.topCard.id}
+                initial={{ scale: 2, opacity: 0, rotate: -20, y: -50 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0, y: 0 }}
+                transition={{ type: 'spring', damping: 14, stiffness: 120 }}
+                className="absolute inset-0"
+              >
+                <UnoCard card={gameState.topCard} disabled />
+              </motion.div>
+            </AnimatePresence>
+            <span className="absolute -bottom-8 font-bold text-gray-400 w-full text-center">Discard Pile</span>
           </div>
         </div>
       </div>
@@ -158,46 +194,67 @@ export default function Game({ socket }: GameProps) {
           </div>
           
           <div className="flex items-center gap-6">
-            <button 
+            <motion.button 
+              whileHover={canCallUno && !hasCalledUno ? { scale: 1.1 } : {}}
+              whileTap={canCallUno && !hasCalledUno ? { scale: 0.95 } : {}}
               onClick={handleCallUno}
               disabled={!canCallUno || hasCalledUno}
               className={`px-6 py-2 rounded-xl font-black text-xl transition-all shadow-lg border-2 ${
                 canCallUno && !hasCalledUno
-                  ? 'bg-uno-red text-white border-white hover:scale-110 hover:shadow-red-500/50 animate-bounce' 
+                  ? 'bg-uno-red text-white border-white shadow-red-500/50' 
                   : 'bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed opacity-50'
               }`}
             >
               UNO!
-            </button>
+            </motion.button>
             <span className="text-gray-400 font-bold">{gameState.hand.length} Cards</span>
           </div>
         </div>
         
         {/* Render Hand */}
         <div className="flex flex-wrap justify-center gap-[-2rem] sm:gap-2 px-4 max-w-6xl">
-          {gameState.hand.map((card) => (
-            <div key={card.id} className="transition-transform hover:-translate-y-4 hover:z-20 -ml-6 sm:ml-0 first:ml-0" style={{ zIndex: 10 }}>
-              <UnoCard card={card} disabled={!isMyTurn} onClick={() => handleCardClick(card)} />
-            </div>
-          ))}
+          <AnimatePresence mode="popLayout">
+            {gameState.hand.map((card, idx) => (
+              <div key={card.id} className="-ml-6 sm:ml-0 first:ml-0 relative">
+                <UnoCard 
+                  card={card} 
+                  index={idx}
+                  disabled={!isMyTurn} 
+                  onClick={() => handleCardClick(card)} 
+                />
+              </div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Wild Color Picker Modal Overlay */}
-      {wildCardId && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-8 rounded-3xl border border-gray-700 text-center max-w-sm w-full">
-            <h2 className="text-2xl font-black mb-6 text-white">Choose Color</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => handlePlayCard(wildCardId, 'Red')} className="h-24 bg-uno-red rounded-xl hover:scale-105 transition shadow-lg border-2 border-transparent hover:border-white"></button>
-              <button onClick={() => handlePlayCard(wildCardId, 'Blue')} className="h-24 bg-uno-blue rounded-xl hover:scale-105 transition shadow-lg border-2 border-transparent hover:border-white"></button>
-              <button onClick={() => handlePlayCard(wildCardId, 'Green')} className="h-24 bg-uno-green rounded-xl hover:scale-105 transition shadow-lg border-2 border-transparent hover:border-white"></button>
-              <button onClick={() => handlePlayCard(wildCardId, 'Yellow')} className="h-24 bg-uno-yellow rounded-xl hover:scale-105 transition shadow-lg border-2 border-transparent hover:border-white"></button>
-            </div>
-            <button onClick={() => setWildCardId(null)} className="mt-6 text-gray-400 hover:text-white font-bold transition">Cancel</button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {wildCardId && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/80 flex items-center justify-center z-50"
+          >
+            <motion.div 
+              initial={{ scale: 0.8, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 50 }}
+              className="bg-gray-800 p-8 rounded-3xl border border-gray-700 text-center max-w-sm w-full"
+            >
+              <h2 className="text-2xl font-black mb-6 text-white">Choose Color</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePlayCard(wildCardId, 'Red')} className="h-24 bg-uno-red rounded-xl shadow-lg border-2 border-transparent hover:border-white"></motion.button>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePlayCard(wildCardId, 'Blue')} className="h-24 bg-uno-blue rounded-xl shadow-lg border-2 border-transparent hover:border-white"></motion.button>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePlayCard(wildCardId, 'Green')} className="h-24 bg-uno-green rounded-xl shadow-lg border-2 border-transparent hover:border-white"></motion.button>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePlayCard(wildCardId, 'Yellow')} className="h-24 bg-uno-yellow rounded-xl shadow-lg border-2 border-transparent hover:border-white"></motion.button>
+              </div>
+              <button onClick={() => setWildCardId(null)} className="mt-6 text-gray-400 hover:text-white font-bold transition">Cancel</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
