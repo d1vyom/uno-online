@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
+import Game from './pages/Game';
 
 function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -31,6 +32,7 @@ function App() {
       <Route path="/" element={<Layout isConnected={isConnected} />}>
         <Route index element={<Home socket={socket} />} />
         <Route path="room/:roomId" element={<Lobby socket={socket} />} />
+        <Route path="game/:roomId" element={<Game socket={socket} />} />
       </Route>
     </Routes>
   );

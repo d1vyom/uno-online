@@ -4,7 +4,7 @@ import { Socket } from 'socket.io-client';
 
 interface Player {
   id: string;
-  isReady?: boolean; // For future backend ready-state implementation
+  isReady?: boolean;
 }
 
 interface LobbyProps {
@@ -16,7 +16,6 @@ export default function Lobby({ socket }: LobbyProps) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Initialize state from router if available (from create/join emit)
   const [players, setPlayers] = useState<Player[]>(location.state?.players || []);
   const [hostId, setHostId] = useState<string>(location.state?.hostId || '');
   const [isReady, setIsReady] = useState(false);
@@ -30,22 +29,32 @@ export default function Lobby({ socket }: LobbyProps) {
     const handlePlayerJoined = ({ players }: { players: Player[] }) => setPlayers(players);
     const handlePlayerLeft = ({ players }: { players: Player[] }) => setPlayers(players);
     const handleHostChanged = ({ hostId }: { hostId: string }) => setHostId(hostId);
+    
+    // Redirect to the Game screen when the host starts the game
+    const handleGameStarted = () => navigate(`/game/${roomId}`);
 
     socket.on('playerJoined', handlePlayerJoined);
     socket.on('playerLeft', handlePlayerLeft);
     socket.on('hostChanged', handleHostChanged);
+    socket.on('gameStarted', handleGameStarted);
 
     return () => {
-      // Automatically leave room when unmounting (navigating away)
-      socket.emit('leaveRoom', { roomId });
       socket.off('playerJoined', handlePlayerJoined);
       socket.off('playerLeft', handlePlayerLeft);
       socket.off('hostChanged', handleHostChanged);
+      socket.off('gameStarted', handleGameStarted);
     };
   }, [socket, roomId, navigate]);
 
   const handleLeave = () => {
+    socket?.emit('leaveRoom', { roomId });
     navigate('/');
+  };
+
+  const handleStartGame = () => {
+    socket?.emit('startGame', { roomId }, (res: any) => {
+      if (!res.success) alert(res.message);
+    });
   };
 
   const isHost = socket?.id === hostId;
@@ -139,6 +148,7 @@ export default function Lobby({ socket }: LobbyProps) {
 
             {isHost && (
               <button 
+                onClick={handleStartGame}
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold bg-uno-blue hover:bg-blue-600 text-white transition-all shadow-lg hover:shadow-blue-500/25 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                 disabled={players.length < 2}
               >
