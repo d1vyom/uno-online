@@ -7,7 +7,7 @@ export interface RoomPlayer {
 }
 export type RoomAction = GameAction
   | { type: "ready"; ready: boolean }
-  | { type: "start" | "leave" | "rematch" | "heartbeat" }
+  | { type: "start" } | { type: "leave" } | { type: "rematch" } | { type: "heartbeat" }
   | { type: "chat"; text: string };
 export interface ActionRequest { actionId: string; expectedRevision: number; action: RoomAction }
 export interface ChatMessage { id: string; playerId: string; name: string; text: string; time: number }

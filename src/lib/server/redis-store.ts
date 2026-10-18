@@ -53,17 +53,17 @@ export function createRedisStore(redis: Redis, namespace = "uno:v1:"): RoomStore
   return {
     mode: "redis",
     async read(code) { return redis.get<Room>(namespace + "room:" + code); },
-    async activeRoom(hash) { return await redis.eval<string | null>(ACTIVE, [namespace + "member:" + hash], [namespace + "room:", hash]) || null; },
+    async activeRoom(hash) { return await redis.eval<unknown[], string | null>(ACTIVE, [namespace + "member:" + hash], [namespace + "room:", hash]) || null; },
     async create(room, hash) {
-      return await redis.eval<number>(CREATE, [namespace + "room:" + room.code, namespace + "member:" + hash],
+      return await redis.eval<unknown[], number>(CREATE, [namespace + "room:" + room.code, namespace + "member:" + hash],
         [JSON.stringify(room), TTL, room.code, namespace + "room:"]) === 1;
     },
     async commit(previousRevision, room, membership = {}) {
-      return await redis.eval<number>(COMMIT, [namespace + "room:" + room.code],
+      return await redis.eval<unknown[], number>(COMMIT, [namespace + "room:" + room.code],
         [previousRevision, JSON.stringify(room), TTL, namespace, membership.add ?? ""]) === 1;
     },
     async consumeLimit(key, maximum, seconds) {
-      return await redis.eval<number>(RATE, [namespace + "limit:" + key], [seconds]) <= maximum;
+      return await redis.eval<unknown[], number>(RATE, [namespace + "limit:" + key], [seconds]) <= maximum;
     },
   };
 }

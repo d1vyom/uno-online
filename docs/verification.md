@@ -18,3 +18,4 @@ multiplayer verification. Local checks do not establish hosted behavior.
 - Engine RED: creation/action suites ran against explicit unimplemented engine functions; creation, legal play, effects, draw phases, UNO, and departures fail as expected before implementation.
 - Engine GREEN: 26/26 tests pass, including private hand ownership enforcement, all action effects, draw phases, UNO penalties, recycling, and reversed-turn departures.
 - Rooms RED: 17 cases failed against unimplemented storage. Rooms GREEN: all 17 passed after room, presence, privacy, readiness, CAS, TTL and retry behavior were implemented. Redis integration tests are explicitly skipped without managed test credentials.
+- HTTP GREEN: 50 tests pass; malformed/oversized JSON, foreign origins, cookie authentication, spoofed actors and stale actions are rejected. Next.js production backend build and strict typecheck pass without Redis credentials.

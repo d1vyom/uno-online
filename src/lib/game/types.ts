@@ -18,5 +18,5 @@ export interface GameState {
 }
 export type GameAction =
   | { type: "play"; cardId: string; color?: Color; uno?: boolean }
-  | { type: "draw" | "pass" | "uno" };
+  | { type: "draw" } | { type: "pass" } | { type: "uno" };
 export class GameError extends Error {}
