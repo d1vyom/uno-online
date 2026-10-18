@@ -1,7 +1,7 @@
 # UNO Online: Next.js multiplayer migration
 
 Date: 2026-10-18
-Status: Proposed specification for user review. Implementation has not started.
+Status: Approved by the user on 2026-10-18. Detailed implementation planning follows.
 
 ## Intended outcome
 
@@ -58,8 +58,9 @@ Baseline checks run before modification:
 | Git working tree before planning | Clean |
 | Remote update | One README-only commit; safely fast-forwarded local main |
 
-GitHub CLI currently reports no authenticated hosts. Public Git fetch succeeds;
-write access still needs verification when pushing. No Redis configuration was
+GitHub CLI reports no authenticated hosts, but Git fetch and push both succeed
+using the configured Git credentials. The specification commit was verified on
+remote main. No Redis configuration was
 found in the inspected project environment. Neither fact prevents local work.
 
 ## Architecture options
