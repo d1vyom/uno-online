@@ -64,4 +64,21 @@ describe("HTTP boundary", () => {
     expect(again.headers.get("set-cookie")).toBeNull();
     expect((await again.json()).players).toHaveLength(2);
   });
+  it("returns a draw once when its first HTTP response is lost and retried", async () => {
+    const { room, cookie } = await newRoom("Retry host"), path = "/api/rooms/" + room.code + "/actions";
+    const guestResponse = await join(post("/api/rooms/" + room.code + "/join", { name: "Retry guest" }), ctx(room.code));
+    const guestCookie = guestResponse.headers.get("set-cookie")!.split(";")[0];
+    let view = await guestResponse.json() as RoomSnapshot;
+    for (const who of [cookie, guestCookie]) {
+      const response = await act(post(path, { expectedRevision: view.revision, actionId: crypto.randomUUID(), action: { type: "ready", ready: true } }, who), ctx(room.code));
+      view = await response.json();
+    }
+    const start = await act(post(path, { expectedRevision: view.revision, actionId: crypto.randomUUID(), action: { type: "start" } }, cookie), ctx(room.code));
+    view = await start.json();
+    const envelope = { expectedRevision: view.revision, actionId: crypto.randomUUID(), action: { type: "draw" } };
+    await act(post(path, envelope, cookie), ctx(room.code)); // The caller never consumes this response.
+    const replay = await act(post(path, envelope, cookie), ctx(room.code));
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).hand).toHaveLength(8);
+  });
 });

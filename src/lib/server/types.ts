@@ -15,7 +15,7 @@ export interface RoomEvent { id: string; text: string; time: number }
 export interface Room {
   schemaVersion: 1; code: string; revision: number; actionRevision: number; hostId: string;
   phase: "lobby" | "playing" | "finished"; players: RoomPlayer[];
-  game: GameState | null; chat: ChatMessage[]; events: RoomEvent[];
+  game: GameState | null; winnerName: string | null; chat: ChatMessage[]; events: RoomEvent[];
   acceptedActions: { sessionHash: string; actionId: string }[];
   storageMode: "redis" | "memory";
 }
@@ -23,7 +23,7 @@ export interface RoomSnapshot {
   code: string; revision: number; hostId: string; myId: string; phase: Room["phase"];
   players: { id: string; name: string; ready: boolean; connected: boolean; cardCount: number; uno: boolean; wins: number }[];
   hand: Card[]; legalCardIds: string[];
-  game: { topCard: Card; activeColor: Color; currentPlayerId: string; direction: 1 | -1; winner: string | null; canPass: boolean; deckCount: number } | null;
+  game: { topCard: Card; activeColor: Color; currentPlayerId: string; direction: 1 | -1; winner: string | null; winnerName: string | null; canPass: boolean; deckCount: number } | null;
   chat: ChatMessage[]; events: RoomEvent[]; storageMode: Room["storageMode"]; left?: boolean;
 }
 export interface MembershipChange { add?: string; remove?: string[] }

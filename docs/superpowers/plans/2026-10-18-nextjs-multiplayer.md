@@ -1,6 +1,6 @@
 # Next.js Multiplayer Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for native execution, or superpowers:subagent-driven-development if the user selects delegation. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans for native execution, or superpowers:subagent-driven-development if the user selects delegation. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deliver a polished UNO-style game for two to four friends, with a single Vercel-deployable Next.js frontend/backend and verified commits on GitHub main.
 
@@ -61,10 +61,10 @@
 
 **Interfaces:** Establish Vitest with the `@/` alias targeting `src/`. Task 2 consumes the engine signatures above. Preserve the existing app until its replacement can be built.
 
-- [ ] Use the using-git-worktrees skill to select an isolated checkout and `codex/nextjs-multiplayer` implementation branch; retain the approved docs and existing audio assets.
-- [ ] Add the test runner and TypeScript configuration. Write `creates a conserved 108-card four-player game`: assert four hands of seven cards, one numeric discard, 108 total cards, and 108 unique IDs.
-- [ ] Run `npm test -- tests/game/engine.test.ts`; verify RED because the new engine is absent, with no unrelated runner/configuration failure.
-- [ ] Record that failure and commit the harness and test as `test: establish multiplayer game acceptance harness`.
+- [x] Use the using-git-worktrees skill to select an isolated checkout and `codex/nextjs-multiplayer` implementation branch; retain the approved docs and existing audio assets.
+- [x] Add the test runner and TypeScript configuration. Write `creates a conserved 108-card four-player game`: assert four hands of seven cards, one numeric discard, 108 total cards, and 108 unique IDs.
+- [x] Run `npm test -- tests/game/engine.test.ts`; verify RED because the new engine is absent, with no unrelated runner/configuration failure.
+- [x] Record that failure and commit the harness and test as `test: establish multiplayer game acceptance harness`.
 
 ## Task 2: Implement and prove the complete rules engine
 
@@ -72,12 +72,12 @@
 
 **Interfaces:** Produce the four engine functions in the map. `GameAction` is play(cardId, optional color, optional uno), draw, pass, or uno. `GameState` holds ordered player IDs, hands, deck, discard, turn, direction, activeColor, drawnCardId, UNO declarations, and winner.
 
-- [ ] Implement `createGame` to pass Task 1. Reject fewer than two, more than four, or duplicate player IDs. Avoid mutating input state.
-- [ ] Add failing tests for legal color/value matches, unauthorized/out-of-turn play, invalid wild color, Draw Four matching-color restriction, skip/reverse, two-player reverse, and draw penalties before a final-card win.
-- [ ] Run the engine test file and verify those cases fail for missing behavior. Implement `applyGameAction` and `canPlay`; rerun until GREEN.
-- [ ] Add RED cases for one draw per turn, only the drawn card playable after drawing, pass, UNO arming/atomic declaration, the immediate two-card house penalty, and post-win mutation rejection. Implement and verify GREEN.
-- [ ] Add RED cases for deck recycling, exhausted draw without a fabricated card, immutable rejected moves, disconnected-player removal in both directions, current-player removal while reversed, and one-player forfeit. Implement `removeGamePlayer` and verify GREEN.
-- [ ] Run `npm test`; record results and commit `feat: implement tested deterministic multiplayer rules`.
+- [x] Implement `createGame` to pass Task 1. Reject fewer than two, more than four, or duplicate player IDs. Avoid mutating input state.
+- [x] Add failing tests for legal color/value matches, unauthorized/out-of-turn play, invalid wild color, Draw Four matching-color restriction, skip/reverse, two-player reverse, and draw penalties before a final-card win.
+- [x] Run the engine test file and verify those cases fail for missing behavior. Implement `applyGameAction` and `canPlay`; rerun until GREEN.
+- [x] Add RED cases for one draw per turn, only the drawn card playable after drawing, pass, UNO arming/atomic declaration, the immediate two-card house penalty, and post-win mutation rejection. Implement and verify GREEN.
+- [x] Add RED cases for deck recycling, exhausted draw without a fabricated card, immutable rejected moves, disconnected-player removal in both directions, current-player removal while reversed, and one-player forfeit. Implement `removeGamePlayer` and verify GREEN.
+- [x] Run `npm test`; record results and commit `feat: implement tested deterministic multiplayer rules`.
 
 ## Task 3: Persist secure rooms with atomic transitions
 
@@ -85,14 +85,14 @@
 
 **Interfaces:** Consume engine functions and produce the RoomStore and room-service signatures in the map. Inject store and time into service tests. Redis and memory adapters obey the same contract; the latter remains development/test-only.
 
-- [ ] Write RED service tests: creation and collision retry; invalid names/codes; membership required; private hand projection; only one active room per session; four-player limit; shared readiness; connected/ready start conditions; active-round restart rejection; no mid-game join; bounded chat/events; host-only rematch with readiness reset and retained wins.
-- [ ] Run `npm test -- tests/server/rooms.test.ts`; implement minimal service, projection, and memory store until GREEN. Invalid actions leave stored state unchanged.
-- [ ] Write RED tests using an injected clock: offline after 30 seconds, protected until 90 seconds since last heartbeat, active offline player's turn paused, throttled heartbeat, expiry processing, directional removal, host transfer, immediate leave, forfeit, and empty-room deletion.
-- [ ] Implement those lifecycle transitions without timers; run service tests to GREEN.
-- [ ] Write RED storage-contract tests for expected revision, duplicate action replay, 24-hour inactivity TTL, session-index cleanup, creation throttling, and bounded retry after storage conflicts. Implement contract behavior and verify GREEN.
-- [ ] Write managed Redis integration cases: two adapter instances share a room; concurrent fourth/fifth joins yield four seats; concurrent same-revision actions yield one mutation; a repeated draw action ID changes the hand once; expiry clears room/indexes; orphaned membership indexes are recovered safely. Use isolated key namespaces and clean only test-owned keys.
-- [ ] Implement `createRedisStore` with atomic Lua commits and retry-safe IDs. Run `npm test -- tests/server/redis-store.test.ts` against configured Redis and record actual results. If credentials are unavailable, retain an explicitly skipped integration suite and report hosted verification as incomplete.
-- [ ] Verify memory opt-in is rejected whenever VERCEL is set, and that missing production credentials return ServiceError with status 503. Commit `feat: add atomic persistent rooms and private sessions`.
+- [x] Write RED service tests: creation and collision retry; invalid names/codes; membership required; private hand projection; only one active room per session; four-player limit; shared readiness; connected/ready start conditions; active-round restart rejection; no mid-game join; bounded chat/events; host-only rematch with readiness reset and retained wins.
+- [x] Run `npm test -- tests/server/rooms.test.ts`; implement minimal service, projection, and memory store until GREEN. Invalid actions leave stored state unchanged.
+- [x] Write RED tests using an injected clock: offline after 30 seconds, protected until 90 seconds since last heartbeat, active offline player's turn paused, throttled heartbeat, expiry processing, directional removal, host transfer, immediate leave, forfeit, and empty-room deletion.
+- [x] Implement those lifecycle transitions without timers; run service tests to GREEN.
+- [x] Write RED storage-contract tests for expected revision, duplicate action replay, 24-hour inactivity TTL, session-index cleanup, creation throttling, and bounded retry after storage conflicts. Implement contract behavior and verify GREEN.
+- [x] Write managed Redis integration cases: two adapter instances share a room; concurrent fourth/fifth joins yield four seats; concurrent same-revision actions yield one mutation; a repeated draw action ID changes the hand once; expiry clears room/indexes; orphaned membership indexes are recovered safely. Use isolated key namespaces and clean only test-owned keys.
+- [x] Implement `createRedisStore` with atomic Lua commits and retry-safe IDs. Run `npm test -- tests/server/redis-store.test.ts` against configured Redis and record actual results. If credentials are unavailable, retain an explicitly skipped integration suite and report hosted verification as incomplete.
+- [x] Verify memory opt-in is rejected whenever VERCEL is set, and that missing production credentials return ServiceError with status 503. Commit `feat: add atomic persistent rooms and private sessions`.
 
 ## Task 4: Expose authenticated Next.js API contracts
 
@@ -100,11 +100,11 @@
 
 **Interfaces:** Consume the room service. Create/join can establish the opaque guest cookie; snapshots/actions require it. Action envelopes contain expectedRevision, actionId, and action. Status mapping: validation 400, authentication 401, forbidden 403, absent room 404, conflict/full room 409, rate limit 429, storage failure 503.
 
-- [ ] Add RED contract tests for malformed/oversized JSON (limit 8 KiB), foreign Origin, missing or tampered cookie, malicious declared color, spoofed actor ID, stale revision, duplicate retry, no-store headers, no secrets in responses, and GET not creating a session or seat.
-- [ ] Configure root Next.js/React/Tailwind and implement session/HTTP helpers and named route exports. Use runtime schemas at trust boundaries and cryptographic random tokens/codes. Run contract tests until GREEN.
-- [ ] Confirm two sessions supplying the same public player ID cannot read the same private hand; client payloads cannot select the authenticated actor.
-- [ ] Wire creation/IP throttles and session/action throttles through shared storage. Rate-limit rejection returns a readable error and Retry-After.
-- [ ] Run `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build`; fix failures. Commit `feat: serve secure multiplayer APIs through Next.js`.
+- [x] Add RED contract tests for malformed/oversized JSON (limit 8 KiB), foreign Origin, missing or tampered cookie, malicious declared color, spoofed actor ID, stale revision, duplicate retry, no-store headers, no secrets in responses, and GET not creating a session or seat.
+- [x] Configure root Next.js/React/Tailwind and implement session/HTTP helpers and named route exports. Use runtime schemas at trust boundaries and cryptographic random tokens/codes. Run contract tests until GREEN.
+- [x] Confirm two sessions supplying the same public player ID cannot read the same private hand; client payloads cannot select the authenticated actor.
+- [x] Wire creation/IP throttles and session/action throttles through shared storage. Rate-limit rejection returns a readable error and Retry-After.
+- [x] Run `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build`; fix failures. Commit `feat: serve secure multiplayer APIs through Next.js`.
 
 ## Task 5: Build the responsive game experience
 
@@ -112,12 +112,12 @@
 
 **Interfaces:** Consume RoomSnapshot and RoomAction. Only the room hook owns networking. Components request actions without deriving authority or reading private server modules.
 
-- [ ] Write a RED revision test: accepting revision 12 then revision 11 retains revision 12. Add browser acceptance cases for name validation, create/join, four named lobby seats, real shared readiness, start conditions, invite copying, and direct room URLs.
-- [ ] Run the relevant tests to RED, then implement the room hook and landing/lobby pages. Poll visible tabs at roughly 1 second, heartbeat at most once per 10 seconds, fetch immediately on visibility restore, abort superseded fetches, back off on errors, and serialize pending actions. Reuse the action ID on safe network retries; show conflicts and refresh instead of automatically replaying a stale move.
-- [ ] Add RED browser cases for legal-card hints, draw/pass, named wild-color dialog, UNO, opponents' hidden hands, sorting, chat, results/rematch, and explicit leave. Implement the playing/results views to GREEN.
-- [ ] Style the warm off-white landing/lobby and dark green tabletop using Tailwind. Keep three opponent seats legible and the local hand horizontally scrollable on small screens. Reuse suitable existing audio with optional persisted mute/volume settings and rejected-playback handling.
-- [ ] Add RED checks for keyboard cards, dialog Escape/focus restoration, live errors, 360px layout without horizontal page overflow, reduced motion, accessible names, and no hydration/console errors. Implement native buttons/dialogs and focus behavior; verify GREEN.
-- [ ] Run the focused browser suites and all unit tests; inspect desktop/mobile screenshots. Commit `feat: build responsive lobby and multiplayer tabletop`.
+- [x] Write a RED revision test: accepting revision 12 then revision 11 retains revision 12. Add browser acceptance cases for name validation, create/join, four named lobby seats, real shared readiness, start conditions, invite copying, and direct room URLs.
+- [x] Run the relevant tests to RED, then implement the room hook and landing/lobby pages. Poll visible tabs at roughly 1 second, heartbeat at most once per 10 seconds, fetch immediately on visibility restore, abort superseded fetches, back off on errors, and serialize pending actions. Reuse the action ID on safe network retries; show conflicts and refresh instead of automatically replaying a stale move.
+- [x] Add RED browser cases for legal-card hints, draw/pass, named wild-color dialog, UNO, opponents' hidden hands, sorting, chat, results/rematch, and explicit leave. Implement the playing/results views to GREEN.
+- [x] Style the warm off-white landing/lobby and dark green tabletop using Tailwind. Keep three opponent seats legible and the local hand horizontally scrollable on small screens. Reuse suitable existing audio with optional persisted mute/volume settings and rejected-playback handling.
+- [x] Add RED checks for keyboard cards, dialog Escape/focus restoration, live errors, 360px layout without horizontal page overflow, reduced motion, accessible names, and no hydration/console errors. Implement native buttons/dialogs and focus behavior; verify GREEN.
+- [x] Run the focused browser suites and all unit tests; inspect desktop/mobile screenshots. Commit `feat: build responsive lobby and multiplayer tabletop`.
 
 ## Task 6: Verify four-player play and finish the migration
 
@@ -125,13 +125,13 @@
 
 **Interfaces:** Exercise the actual app through HTTP/browser contexts. Deterministic fixtures belong to test utilities and test-owned storage; no production-accessible seed/debug endpoints.
 
-- [ ] Write a RED four-context journey: create one room, join three players, reject a fifth, synchronize readiness, start, compare public revisions and distinct private hands, perform legal play/draw/pass and wild choices, refresh a player, exchange chat, finish a round, and rematch. Use test-owned seeded storage where deterministic card order is necessary.
-- [ ] Write RED network/host cases: lost move response and retry, temporary offline recovery, expired seat, host leave/transfer, stale action, missing room, full room, and unavailable storage. Fix the real flow until browser checks pass.
-- [ ] Remove replaced Vite/Express code, duplicate types, old lock/workspace references, tracked environment configuration, and Codespace URLs. Move retained sound assets to root public. Update the devcontainer for one Next.js server.
-- [ ] Document installation, local explicit memory mode, the full rules/house penalty, Redis provisioning, server-only variables, Vercel repository-root setup, storage costs/limits, deployment verification, and all test commands. Mark managed Redis/hosted checks accurately.
-- [ ] Add CI with clean npm install, lint, typecheck, unit tests, production build, and browser tests. CI tests use a clearly explicit local adapter unless test Redis secrets are supplied; never silently fall back for production.
-- [ ] Run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`, and the managed Redis suite when configured. Record outputs, counts, screenshots, and unresolved external dependencies in docs/verification.md.
-- [ ] Use verification-before-completion and requesting-code-review skills. Review the full diff for private-state leaks, production memory fallback, stale updates, missing rule cases, accessibility, and accidental secrets. Fix and rerun only checks relevant to new changes, plus the final project test suite.
+- [x] Write a RED four-context journey: create one room, join three players, reject a fifth, synchronize readiness, start, compare public revisions and distinct private hands, perform legal play/draw/pass and wild choices, refresh a player, exchange chat, finish a round, and rematch. Use test-owned seeded storage where deterministic card order is necessary.
+- [x] Write RED network/host cases: lost move response and retry, temporary offline recovery, expired seat, host leave/transfer, stale action, missing room, full room, and unavailable storage. Fix the real flow until browser checks pass.
+- [x] Remove replaced Vite/Express code, duplicate types, old lock/workspace references, tracked environment configuration, and Codespace URLs. Move retained sound assets to root public. Update the devcontainer for one Next.js server.
+- [x] Document installation, local explicit memory mode, the full rules/house penalty, Redis provisioning, server-only variables, Vercel repository-root setup, storage costs/limits, deployment verification, and all test commands. Mark managed Redis/hosted checks accurately.
+- [x] Add CI with clean npm install, lint, typecheck, unit tests, production build, and browser tests. CI tests use a clearly explicit local adapter unless test Redis secrets are supplied; never silently fall back for production.
+- [x] Run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`, and the managed Redis suite when configured. Record outputs, counts, screenshots, and unresolved external dependencies in docs/verification.md.
+- [x] Use verification-before-completion and requesting-code-review skills. Review the full diff for private-state leaks, production memory fallback, stale updates, missing rule cases, accessibility, and accidental secrets. Fix and rerun only checks relevant to new changes, plus the final project test suite.
 - [ ] Commit the verified deliverable, use finishing-a-development-branch to integrate into main, and push all implementation commits without force. Verify remote SHA equals local main and inspect CI/deployment status. If main is protected, preserve commits on the feature branch and follow the repository's merge requirements.
 - [ ] Report the completed app, actual checks, main commit, and any missing Redis/Vercel configuration. Do not claim hosted multiplayer is verified without exercising a configured deployment.
 

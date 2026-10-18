@@ -1,5 +1,40 @@
 import { expect, test } from "@playwright/test";
 
+test("a delayed background heartbeat does not discard a guest's readiness click", async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let intercepted = false;
+  await page.route("**/api/rooms/*/actions", async (route) => {
+    if (route.request().postDataJSON()?.action?.type === "heartbeat") { intercepted = true; await held; }
+    await route.continue().catch(() => {});
+  });
+  try {
+    await page.goto("/"); await page.getByLabel("Your name").fill("Heartbeat");
+    await page.getByRole("button", { name: "Create a room" }).click();
+    await expect.poll(() => intercepted).toBe(true);
+    await page.getByRole("button", { name: "Ready up", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Not ready", exact: true })).toBeVisible();
+  } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+});
+
+test("a hanging snapshot times out and the same private seat recovers", async ({ page }) => {
+  test.setTimeout(45_000);
+  let release!: () => void, intercepted = false;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/rooms/*", async (route) => {
+    if (route.request().method() === "GET" && !intercepted) { intercepted = true; await held; }
+    await route.continue().catch(() => {});
+  });
+  try {
+    await page.goto("/"); await page.getByLabel("Your name").fill("Recovery");
+    await page.getByRole("button", { name: "Create a room" }).click();
+    await expect.poll(() => intercepted).toBe(true);
+    await expect(page.getByRole("heading", { name: "The table is out of reach." })).toBeVisible({ timeout: 16_000 });
+    release();
+    await expect(page.getByRole("button", { name: "Ready up", exact: true })).toBeVisible();
+  } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+});
+
 test("refresh and network recovery keep a private seat, then host departure transfers ownership", async ({ browser }) => {
   const hostContext = await browser.newContext(), guestContext = await browser.newContext();
   try {

@@ -20,21 +20,24 @@ export function useRoom(code: string) {
     setStatus("connected");
   }, []);
   const refresh = useCallback(async () => {
-    if (reading.current) return;
+    if (reading.current) return false;
     reading.current = true;
     abort.current = new AbortController();
-    try { update(await requestJson<RoomSnapshot>("/api/rooms/" + code, { signal: abort.current.signal })); }
+    const controller = abort.current;
+    const deadline = setTimeout(() => controller.abort(new DOMException("Room request timed out.", "TimeoutError")), 12_000);
+    try { update(await requestJson<RoomSnapshot>("/api/rooms/" + code, { signal: controller.signal })); return true; }
     catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof DOMException && error.name === "AbortError") return false;
       if (error instanceof ApiError && [401, 403].includes(error.status)) setStatus("join");
       else if (error instanceof ApiError && error.status === 404) setStatus("missing");
       else setStatus("reconnecting");
-    } finally { reading.current = false; }
+      return false;
+    } finally { clearTimeout(deadline); reading.current = false; }
   }, [code, update]);
   const send = useCallback(async (action: RoomAction) => {
     if (locked.current || !current.current) return;
-    locked.current = true;
-    if (action.type !== "heartbeat") { setPending(true); setError(""); }
+    const foreground = action.type !== "heartbeat";
+    if (foreground) { locked.current = true; setPending(true); setError(""); }
     const envelope = { action, expectedRevision: current.current.revision, actionId: crypto.randomUUID() };
     try {
       let result: RoomSnapshot | undefined;
@@ -49,7 +52,7 @@ export function useRoom(code: string) {
     } catch (failure) {
       if (action.type !== "heartbeat") setError(failure instanceof Error ? failure.message : "Connection lost. Try again.");
       await refresh();
-    } finally { locked.current = false; setPending(false); }
+    } finally { if (foreground) { locked.current = false; setPending(false); } }
   }, [code, refresh, router, update]);
   useEffect(() => {
     let cancelled = false, timer: ReturnType<typeof setTimeout>;
@@ -57,8 +60,8 @@ export function useRoom(code: string) {
     async function poll() {
       if (cancelled) return;
       if (!document.hidden) {
-        await refresh();
-        delay = current.current ? 1000 : Math.min(delay * 1.5, 10_000);
+        const succeeded = await refresh();
+        delay = succeeded ? 1000 : Math.min(delay * 1.5, 10_000);
       }
       if (!cancelled) timer = setTimeout(poll, document.hidden ? 10_000 : delay);
     }

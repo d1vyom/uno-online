@@ -162,6 +162,20 @@ describe("presence, departure and rematch", () => {
     expect(await store.read(room.code)).toBeNull();
     expect(await store.activeRoom("session-a")).toBeNull();
   });
+  it("retains the winner's name when they leave the results table", async () => {
+    const room = await started(3), stored = (await store.read(room.code))!;
+    const game = stored.game!, host = stored.players[0];
+    game.deck.push(...game.hands[host.id].slice(1));
+    game.hands[host.id] = [{ id: game.hands[host.id][0].id, color: "red", value: "5" }];
+    game.activeColor = "red"; game.currentPlayerId = host.id;
+    const prior = stored.revision; stored.revision++; stored.actionRevision = stored.revision;
+    expect(await store.commit(prior, stored)).toBe(true);
+    let result = await action(room, "session-a", { type: "play", cardId: game.hands[host.id][0].id });
+    expect(result.phase).toBe("finished");
+    await action(result, "session-a", { type: "leave" });
+    result = await readRoom(store, room.code, "session-b", tick);
+    expect(result.game?.winnerName).toBe("Alice");
+  });
   it("expires inactive rooms after twenty-four hours", async () => {
     const room = await table(2);
     tick += 86_400_001;

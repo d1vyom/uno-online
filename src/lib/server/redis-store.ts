@@ -53,7 +53,10 @@ export function createRedisStore(redis: Redis, namespace = "uno:v1:"): RoomStore
   return {
     mode: "redis",
     async read(code) { return redis.get<Room>(namespace + "room:" + code); },
-    async activeRoom(hash) { return await redis.eval<unknown[], string | null>(ACTIVE, [namespace + "member:" + hash], [namespace + "room:", hash]) || null; },
+    async activeRoom(hash) {
+      const code = await redis.eval<unknown[], string | number | null>(ACTIVE, [namespace + "member:" + hash], [namespace + "room:", hash]);
+      return code == null ? null : String(code);
+    },
     async create(room, hash) {
       return await redis.eval<unknown[], number>(CREATE, [namespace + "room:" + room.code, namespace + "member:" + hash],
         [JSON.stringify(room), TTL, room.code, namespace + "room:"]) === 1;

@@ -5,7 +5,7 @@
   "version": "2.0.0",
   "description": "A private multiplayer card table for two to four friends.",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev",

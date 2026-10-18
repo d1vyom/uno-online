@@ -9,7 +9,7 @@ No accounts or downloads required.
 
 ## Run locally
 
-Use Node.js 22 or newer (Node.js 24 recommended).
+Use Node.js 24. The Vercel project, CI, and development container use that version.
 
 ```powershell
 npm ci

@@ -28,6 +28,7 @@ function finish(room: Room, now: number) {
   if (room.phase === "playing" && room.game?.winner) {
     room.phase = "finished";
     const winner = room.players.find((p) => p.id === room.game!.winner);
+    room.winnerName = winner?.name ?? "A player";
     if (winner) { winner.wins++; event(room, winner.name + " won the round.", now); }
   }
 }
@@ -67,7 +68,7 @@ export async function createRoom(store: RoomStore, sessionHash: string, name: st
     const code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join("");
     const room: Room = {
       schemaVersion: 1, code, revision: 0, actionRevision: 0, hostId: host.id, phase: "lobby", players: [host],
-      game: null, chat: [], events: [], acceptedActions: [], storageMode: store.mode,
+      game: null, winnerName: null, chat: [], events: [], acceptedActions: [], storageMode: store.mode,
     };
     event(room, host.name + " opened the table.", now);
     if (await store.create(room, sessionHash)) return projectRoom(room, sessionHash, now);
@@ -130,7 +131,7 @@ async function applyRoomAction(store: RoomStore, code: string, sessionHash: stri
       event(room, "A new round started. Good luck!", now);
     } else {
       if (room.phase !== "finished") throw new ServiceError("Finish this round before a rematch.", 409);
-      room.game = null; room.phase = "lobby"; room.players.forEach((p) => { p.ready = false; });
+      room.game = null; room.winnerName = null; room.phase = "lobby"; room.players.forEach((p) => { p.ready = false; });
       event(room, "Rematch! Ready up for another round.", now);
     }
   } else if (action.type === "chat") {

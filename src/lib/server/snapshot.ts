@@ -13,7 +13,7 @@ export function projectRoom(room: Room, sessionHash: string, now: number): RoomS
     hand, legalCardIds: game ? hand.filter((c) => canPlay(game, viewer.id, c.id)).map((c) => c.id) : [],
     game: game ? {
       topCard: game.discard.at(-1)!, activeColor: game.activeColor, currentPlayerId: game.currentPlayerId,
-      direction: game.direction, winner: game.winner,
+      direction: game.direction, winner: game.winner, winnerName: room.winnerName,
       canPass: game.currentPlayerId === viewer.id && !!game.drawnCardId, deckCount: game.deck.length,
     } : null,
     chat: room.chat, events: room.events, storageMode: room.storageMode,

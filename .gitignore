@@ -18,6 +18,7 @@ test-results
 !.env.example
 .vercel
 .playwright-mcp
+next-env.d.ts
 dist
 dist-ssr
 *.local
