@@ -16,3 +16,4 @@ Results are appended as each behavioral layer is implemented.
 Managed Redis and a configured Vercel deployment are required for hosted
 multiplayer verification. Local checks do not establish hosted behavior.
 - Engine RED: creation/action suites ran against explicit unimplemented engine functions; creation, legal play, effects, draw phases, UNO, and departures fail as expected before implementation.
+- Engine GREEN: 26/26 tests pass, including private hand ownership enforcement, all action effects, draw phases, UNO penalties, recycling, and reversed-turn departures.
