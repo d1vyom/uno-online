@@ -1,20 +1,14 @@
 {
   "name": "UNO Multiplayer",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
-  "forwardPorts": [3000, 4000],
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "forwardPorts": [3000],
   "portsAttributes": {
-    "4000": {
-      "label": "Backend (Socket.IO)",
-      "requireLocalPort": false,
-      "protocol": "https",
-      "visibility": "public"
-    },
     "3000": {
-      "label": "Frontend (React)",
+      "label": "UNO Online (Next.js)",
       "requireLocalPort": false,
       "protocol": "https",
       "visibility": "public"
     }
   },
-  "postCreateCommand": "npm install"
+  "postCreateCommand": "npm ci"
 }

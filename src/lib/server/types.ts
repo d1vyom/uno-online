@@ -13,7 +13,7 @@ export interface ActionRequest { actionId: string; expectedRevision: number; act
 export interface ChatMessage { id: string; playerId: string; name: string; text: string; time: number }
 export interface RoomEvent { id: string; text: string; time: number }
 export interface Room {
-  schemaVersion: 1; code: string; revision: number; hostId: string;
+  schemaVersion: 1; code: string; revision: number; actionRevision: number; hostId: string;
   phase: "lobby" | "playing" | "finished"; players: RoomPlayer[];
   game: GameState | null; chat: ChatMessage[]; events: RoomEvent[];
   acceptedActions: { sessionHash: string; actionId: string }[];

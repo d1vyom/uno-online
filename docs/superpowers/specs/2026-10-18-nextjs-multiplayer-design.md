@@ -1,7 +1,7 @@
 # UNO Online: Next.js multiplayer migration
 
 Date: 2026-10-18
-Status: Approved by the user on 2026-10-18. Detailed implementation planning follows.
+Status: Approved by the user on 2026-10-18; implemented and locally verified. Managed Redis and hosted verification require the setup documented in README.md.
 
 ## Intended outcome
 
@@ -152,7 +152,13 @@ direction, last public actions, winner, and room score. They never include the
 draw pile order, opponent hands, cookies, token hashes, or internal stored state.
 Use no-store response headers and never place private room responses in a CDN.
 
-Clients allow one pending action and ignore older revisions. Conflicts trigger a
+Clients allow one pending action and ignore older revisions. Readiness, chat, and
+heartbeats express independent intent and may rebase atomically on a newer room
+with bounded retries. Gameplay, start, leave, and rematch retain strict expected
+revision checks against the most recent game/membership change; unrelated presence
+or chat updates do not invalidate an otherwise current move. This refinement was
+identified by the four-browser lobby test and a heartbeat concurrency regression.
+Conflicts on those dependent actions trigger a
 fresh snapshot and a clear retry message. Abort superseded fetches; retry temporary
 network failures with bounded backoff and a visible reconnect state. Do not show
 an unconfirmed move as accepted. Snapshot GET must not create guest sessions or

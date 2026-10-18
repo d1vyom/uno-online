@@ -72,6 +72,13 @@ describe("private rooms", () => {
     await expect(action(room, "session-a", { type: "start" })).rejects.toThrow();
     await expect(joinRoom(store, room.code, "third", "Third", tick)).rejects.toThrow();
   });
+  it("accepts independent readiness updates from the same lobby revision", async () => {
+    const room = await table(2);
+    const outcomes = await Promise.allSettled(["session-a", "session-b"].map((who) =>
+      actOnRoom(store, room.code, who, { expectedRevision: room.revision, actionId: "ready-" + who, action: { type: "ready", ready: true } }, tick)));
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(2);
+    expect((await readRoom(store, room.code, "session-a", tick)).players.every((p) => p.ready)).toBe(true);
+  });
   it("returns exactly the viewer's hand and no internal state", async () => {
     const room = await started();
     const alice = await readRoom(store, room.code, "session-a", tick);
@@ -95,6 +102,13 @@ describe("private rooms", () => {
     expect(again.revision).toBe(next.revision);
     await expect(actOnRoom(store, room.code, "session-a", { ...request, actionId: "different-id" }, tick)).rejects.toThrow(/changed|stale|refresh/i);
   });
+  it("does not invalidate a legal move when only another player's heartbeat changed", async () => {
+    const room = await started(2), before = await readRoom(store, room.code, "session-a", tick);
+    tick += 10_001;
+    await action(room, "session-b", { type: "heartbeat" });
+    const next = await actOnRoom(store, room.code, "session-a", { expectedRevision: before.revision, actionId: "draw-after-presence", action: { type: "draw" } }, tick);
+    expect(next.hand).toHaveLength(8);
+  });
   it("keeps chat bounded and rejects empty messages", async () => {
     let room = await table(2);
     await expect(action(room, "session-a", { type: "chat", text: " " })).rejects.toThrow();
@@ -107,7 +121,8 @@ describe("private rooms", () => {
 
 describe("presence, departure and rematch", () => {
   it("throttles heartbeats and marks offline after thirty seconds", async () => {
-    let room = await table(2), original = room.revision;
+    let room = await table(2);
+    const original = room.revision;
     room = await action(room, "session-a", { type: "heartbeat" });
     expect(room.revision).toBe(original);
     tick += 31_000;

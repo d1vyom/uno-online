@@ -53,7 +53,7 @@ describe("HTTP boundary", () => {
     const action = { expectedRevision: room.revision, actionId: crypto.randomUUID(), action: { type: "ready", ready: true } };
     expect((await act(post(path, { ...action, actorId: room.myId }, cookie), ctx(room.code))).status).toBe(400);
     expect((await act(post(path, action, cookie), ctx(room.code))).status).toBe(200);
-    expect((await act(post(path, { ...action, actionId: crypto.randomUUID() }, cookie), ctx(room.code))).status).toBe(409);
+    expect((await act(post(path, { ...action, actionId: crypto.randomUUID(), action: { type: "start" } }, cookie), ctx(room.code))).status).toBe(409);
     expect((await act(post(path, { ...action, action: { type: "play", cardId: "c5", color: "purple" } }, cookie), ctx(room.code))).status).toBe(400);
   });
   it("joins with a fresh session and keeps the existing guest cookie stable", async () => {

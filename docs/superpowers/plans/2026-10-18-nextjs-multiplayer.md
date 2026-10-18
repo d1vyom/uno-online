@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../specs/2026-10-18-nextjs-multiplayer-design.md).
 
-**Execution recommendation:** Native implementation in this chat. No implementation has started; user review and selection of execution method are pending.
+**Execution method:** Native implementation in this chat, selected by the user. The implementation follows this plan with the refinements recorded in the verification notes.
 
 ## Global Constraints
 

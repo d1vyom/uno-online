@@ -5,6 +5,9 @@ import { projectRoom } from "./snapshot";
 import { ServiceError, type ActionRequest, type Room, type RoomPlayer, type RoomSnapshot, type RoomStore } from "./types";
 const random = () => randomInt(0, 0x1_0000_0000) / 0x1_0000_0000;
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+class WriteConflict extends ServiceError {
+  constructor() { super("The table changed. Refresh and try again.", 409); }
+}
 function codeValue(code: string): string {
   const result = code.trim().toUpperCase();
   if (!/^[A-Z2-9]{6}$/.test(result)) throw new ServiceError("Enter a six-character room code.");
@@ -12,7 +15,7 @@ function codeValue(code: string): string {
 }
 function nameValue(name: string): string {
   const result = name.trim();
-  if (!result || result.length > 24 || /[\u0000-\u001f\u007f]/.test(result)) throw new ServiceError("Use a name between 1 and 24 characters.");
+  if (!result || result.length > 24 || /\p{Cc}/u.test(result)) throw new ServiceError("Use a name between 1 and 24 characters.");
   return result;
 }
 function player(sessionHash: string, name: string, now: number): RoomPlayer {
@@ -47,6 +50,7 @@ async function load(store: RoomStore, rawCode: string, session: string | null, n
     const revision = room.revision;
     for (const p of expired) remove(room, p.id, now);
     room.revision++;
+    room.actionRevision = room.revision;
     if (await store.commit(revision, room, { remove: expired.map((p) => p.sessionHash) })) {
       if (!room.players.length) throw new ServiceError("This room has expired.", 404);
       return room;
@@ -62,7 +66,7 @@ export async function createRoom(store: RoomStore, sessionHash: string, name: st
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join("");
     const room: Room = {
-      schemaVersion: 1, code, revision: 0, hostId: host.id, phase: "lobby", players: [host],
+      schemaVersion: 1, code, revision: 0, actionRevision: 0, hostId: host.id, phase: "lobby", players: [host],
       game: null, chat: [], events: [], acceptedActions: [], storageMode: store.mode,
     };
     event(room, host.name + " opened the table.", now);
@@ -82,7 +86,7 @@ export async function joinRoom(store: RoomStore, code: string, sessionHash: stri
     if (room.phase !== "lobby") throw new ServiceError("This round has already started. Join after the rematch.", 409);
     const revision = room.revision;
     room.players.push(player(sessionHash, validName, now));
-    event(room, validName + " joined the table.", now); room.revision++;
+    event(room, validName + " joined the table.", now); room.revision++; room.actionRevision = room.revision;
     if (await store.commit(revision, room, { add: sessionHash })) return projectRoom(room, sessionHash, now);
   }
   throw new ServiceError("The table changed. Refresh and try again.", 409);
@@ -93,13 +97,23 @@ export async function readRoom(store: RoomStore, code: string, sessionHash: stri
 }
 
 export async function actOnRoom(store: RoomStore, code: string, sessionHash: string, request: ActionRequest, now = Date.now()): Promise<RoomSnapshot> {
+  // These actions describe independent intent and can safely rebase on a newer room.
+  const independent = ["ready", "chat", "heartbeat"].includes(request.action.type);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try { return await applyRoomAction(store, code, sessionHash, request, now, independent); }
+    catch (error) {
+      if (attempt === 5 || !(error instanceof WriteConflict)) throw error;
+    }
+  }
+  throw new ServiceError("The table changed. Refresh and try again.", 409);
+}
+async function applyRoomAction(store: RoomStore, code: string, sessionHash: string, request: ActionRequest, now: number, independent: boolean): Promise<RoomSnapshot> {
   const room = await load(store, code, sessionHash, now), revision = room.revision;
   const actor = room.players.find((p) => p.sessionHash === sessionHash)!;
   if (!actor) throw new ServiceError("Your seat has expired. Join again.", 403);
   if (room.acceptedActions.some((a) => a.sessionHash === sessionHash && a.actionId === request.actionId)) return projectRoom(room, sessionHash, now);
   const action = request.action;
-  // Presence is commutative; it need not reject a newer game revision.
-  if (action.type !== "heartbeat" && revision !== request.expectedRevision) throw new ServiceError("The table changed. Refresh and try again.", 409);
+  if ((!independent && request.expectedRevision < room.actionRevision) || request.expectedRevision > revision) throw new ServiceError("The table changed. Refresh and try again.", 409);
   if (action.type === "heartbeat" && now - actor.lastSeen < 10_000) return projectRoom(room, sessionHash, now);
   if (room.phase === "finished" && !["leave", "rematch", "heartbeat"].includes(action.type)) throw new ServiceError("This round has finished. Start a rematch.", 409);
   const previousSnapshot = projectRoom(room, sessionHash, now);
@@ -121,7 +135,7 @@ export async function actOnRoom(store: RoomStore, code: string, sessionHash: str
     }
   } else if (action.type === "chat") {
     const text = action.text.trim();
-    if (!text || text.length > 200 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) throw new ServiceError("Send a message between 1 and 200 characters.");
+    if (!text || text.length > 200 || /\p{Cc}/u.test(text.replace(/[\t\n\r]/g, ""))) throw new ServiceError("Send a message between 1 and 200 characters.");
     room.chat.push({ id: randomUUID(), playerId: actor.id, name: actor.name, text, time: now });
     room.chat = room.chat.slice(-100);
   } else {
@@ -134,8 +148,9 @@ export async function actOnRoom(store: RoomStore, code: string, sessionHash: str
     event(room, actor.name + " " + descriptions[action.type] + ".", now); finish(room, now);
   }
   room.revision++;
+  if (!independent) room.actionRevision = room.revision;
   room.acceptedActions.push({ sessionHash, actionId: request.actionId });
   room.acceptedActions = room.acceptedActions.slice(-100);
-  if (!await store.commit(revision, room, action.type === "leave" ? { remove: [sessionHash] } : undefined)) throw new ServiceError("The table changed. Refresh and try again.", 409);
+  if (!await store.commit(revision, room, action.type === "leave" ? { remove: [sessionHash] } : undefined)) throw new WriteConflict();
   return action.type === "leave" ? { ...previousSnapshot, revision: room.revision, hand: [], legalCardIds: [], left: true } : projectRoom(room, sessionHash, now);
 }

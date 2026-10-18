@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getStore } from "./store";
 import { hashSessionToken, newSessionToken, readSession, sessionCookie } from "./session";
 import { ServiceError, type RoomStore } from "./types";
-export const nameSchema = z.object({ name: z.string().trim().min(1).max(24).regex(/^[^\u0000-\u001f\u007f]+$/) }).strict();
+export const nameSchema = z.object({ name: z.string().trim().min(1).max(24).regex(/^\P{Cc}+$/u) }).strict();
 export const actionSchema = z.object({
   actionId: z.string().min(8).max(100),
   expectedRevision: z.number().int().min(0),
