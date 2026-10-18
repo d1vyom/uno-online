@@ -8,6 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.next
+.next-e2e
+.superpowers
+playwright-report
+test-results
+*.tsbuildinfo
+.env*
+!.env.example
+.vercel
 dist
 dist-ssr
 *.local

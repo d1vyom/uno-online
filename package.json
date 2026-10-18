@@ -1,23 +1,42 @@
 {
-  "name": "uno-multiplayer",
+  "name": "uno-online",
   "private": true,
-  "version": "1.0.0",
-  "description": "Professional online multiplayer UNO website",
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "type": "module",
+  "version": "2.0.0",
+  "description": "A private multiplayer card table for two to four friends.",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "npm run build --workspaces",
-    "start": "npm run build --workspace=backend && npm run start --workspace=backend"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src tests e2e *.ts *.mjs",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:redis": "vitest run tests/server/redis-store.test.ts"
+  },
+  "dependencies": {
+    "@upstash/redis": "1.39.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.2",
+    "postcss": "8.5.30",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
   }
 }
