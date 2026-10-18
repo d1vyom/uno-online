@@ -115,3 +115,7 @@ fixed with regression evidence. There are no deferred review findings.
 - Rooms RED: 17 cases failed against unimplemented storage. Rooms GREEN: all 17 passed after room, presence, privacy, readiness, CAS, TTL and retry behavior were implemented. Redis integration tests are explicitly skipped without managed test credentials.
 - HTTP GREEN: 50 tests pass; malformed/oversized JSON, foreign origins, cookie authentication, spoofed actors and stale actions are rejected. Next.js production backend build and strict typecheck pass without Redis credentials.
 - Concurrent readiness regression RED: only one of two simultaneous ready updates succeeded. GREEN: independent readiness/chat/heartbeat updates now retry atomically; dependent gameplay actions still reject stale revisions.
+
+## GitHub publication
+
+Implementation commit 216e0d9 was merged into main and pushed successfully. The merged checkout passed a fresh npm ci, 57 local tests, and a production build. The remote main SHA matched the local SHA, and the GitHub API attributed both author and committer to d1vyom. The automated workflow is available in [GitHub Actions](https://github.com/d1vyom/uno-online/actions).

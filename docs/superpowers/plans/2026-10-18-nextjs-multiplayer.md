@@ -132,8 +132,8 @@
 - [x] Add CI with clean npm install, lint, typecheck, unit tests, production build, and browser tests. CI tests use a clearly explicit local adapter unless test Redis secrets are supplied; never silently fall back for production.
 - [x] Run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`, and the managed Redis suite when configured. Record outputs, counts, screenshots, and unresolved external dependencies in docs/verification.md.
 - [x] Use verification-before-completion and requesting-code-review skills. Review the full diff for private-state leaks, production memory fallback, stale updates, missing rule cases, accessibility, and accidental secrets. Fix and rerun only checks relevant to new changes, plus the final project test suite.
-- [ ] Commit the verified deliverable, use finishing-a-development-branch to integrate into main, and push all implementation commits without force. Verify remote SHA equals local main and inspect CI/deployment status. If main is protected, preserve commits on the feature branch and follow the repository's merge requirements.
-- [ ] Report the completed app, actual checks, main commit, and any missing Redis/Vercel configuration. Do not claim hosted multiplayer is verified without exercising a configured deployment.
+- [x] Commit the verified deliverable, use finishing-a-development-branch to integrate into main, and push all implementation commits without force. Verify remote SHA equals local main and inspect CI/deployment status. If main is protected, preserve commits on the feature branch and follow the repository's merge requirements.
+- [x] Report the completed app, actual checks, main commit, and any missing Redis/Vercel configuration. Do not claim hosted multiplayer is verified without exercising a configured deployment.
 
 ## Plan self-review
 
