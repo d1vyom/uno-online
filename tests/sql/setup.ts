@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const url = process.env.TEST_DATABASE_URL;
 export const pool = new Pool({ connectionString: url, max: 8, connectionTimeoutMillis: 5000, statement_timeout: 10_000 });
 export function migrationSql(): string {
-  return readdirSync(resolve("supabase/migrations")).filter((file) => file.endsWith("_uno_storage.sql")).map((file) => readFileSync(resolve("supabase/migrations", file), "utf8")).join("\n");
+  return readdirSync(resolve("supabase/migrations")).filter((file) => file.endsWith(".sql") && !file.endsWith("_uno_cron.sql")).sort().map((file) => readFileSync(resolve("supabase/migrations", file), "utf8")).join("\n");
 }
 export async function setupDatabase() {
   if (!url || new URL(url).pathname !== "/uno_test") throw new Error("SQL tests require TEST_DATABASE_URL pointing to a disposable database named uno_test.");
