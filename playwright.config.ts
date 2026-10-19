@@ -1,12 +1,12 @@
 import { defineConfig } from "@playwright/test";
-const store = process.env.UNO_E2E_STORE ?? "memory";
-if (store !== "memory" && store !== "supabase") throw new Error("UNO_E2E_STORE must be memory or supabase.");
+import { e2eTarget } from "./e2e/helpers/target";
+const { baseURL, store, remote } = e2eTarget();
 export default defineConfig({
   testDir: "./e2e", fullyParallel: false, workers: 1, timeout: 90_000,
   expect: { timeout: 12_000 },
-  use: { baseURL: "http://localhost:3100", headless: true, trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: { baseURL, headless: true, trace: "retain-on-failure", screenshot: "only-on-failure" },
   reporter: [["list"], ["html", { open: "never" }]],
-  webServer: {
+  webServer: remote ? undefined : {
     command: "npm run build && npm run start -- --port 3100",
     url: "http://localhost:3100/api/health",
     reuseExistingServer: false, timeout: 120_000,

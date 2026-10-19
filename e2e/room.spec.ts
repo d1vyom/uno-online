@@ -1,3 +1,4 @@
+import { e2eTarget } from "./helpers/target";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { cleanupGuests } from "./helpers/cleanup";
@@ -42,7 +43,7 @@ test("mobile landing is accessible and rules dialog restores focus", async ({ pa
 
 test("missing rooms and invalid names have recoverable errors", async ({ page, request }) => {
   // Create and close our own room instead of assuming a public code is unused.
-  const origin = "http://localhost:3100";
+  const origin = e2eTarget().baseURL;
   const created = await request.post("/api/rooms", { headers: { origin }, data: { name: "Closed table" } });
   expect(created.status()).toBe(201);
   const room = await created.json();

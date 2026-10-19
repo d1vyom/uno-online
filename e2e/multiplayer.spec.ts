@@ -1,10 +1,12 @@
+import { readApi } from "./helpers/api";
+import { e2eTarget } from "./helpers/target";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { RoomSnapshot } from "../src/lib/server/types";
 import { cleanupGuests } from "./helpers/cleanup";
 
 test("four friends play a complete round, refresh, chat, and rematch", async ({ browser }, testInfo) => {
-  test.setTimeout(process.env.UNO_E2E_STORE === "supabase" ? 600_000 : 300_000);
+  test.setTimeout(e2eTarget().store === "supabase" ? 600_000 : 300_000);
   const contexts: BrowserContext[] = [], pages: Page[] = [];
   const errors: string[] = [];
   let ownedCode: string | undefined;
@@ -38,13 +40,13 @@ test("four friends play a complete round, refresh, chat, and rematch", async ({ 
     for (let i = 0; i < 4; i++) await expect(pages[i].getByTestId("hand-card")).toHaveCount(7);
 
     async function snapshot(context: BrowserContext): Promise<RoomSnapshot> {
-      const response = await context.request.get("http://localhost:3100/api/rooms/" + code);
+      const response = await readApi(context.request, e2eTarget().baseURL + "/api/rooms/" + code);
       expect(response.status()).toBe(200); return response.json();
     }
     const initial = await Promise.all(contexts.slice(0, 4).map(snapshot));
-    const storage = process.env.UNO_E2E_STORE === "supabase" ? "supabase" : "memory";
+    const storage = e2eTarget().store;
     expect(initial.every((view) => view.storageMode === storage)).toBe(true);
-    expect(await (await contexts[0].request.get("http://localhost:3100/api/health")).json()).toEqual({ status: "ok", storage, durable: storage === "supabase" });
+    expect(await (await readApi(contexts[0].request, e2eTarget().baseURL + "/api/health")).json()).toEqual({ status: "ok", storage, durable: storage === "supabase" });
     expect(new Set(initial.flatMap((s) => s.hand.map((c) => c.id))).size).toBe(28);
     expect(new Set(initial.map((s) => s.game?.topCard.id)).size).toBe(1);
     const byId = new Map(initial.map((s, i) => [s.myId, i]));

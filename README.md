@@ -7,6 +7,8 @@ Create a room, send your friends the link, and ready up. Play a complete round,
 refresh without losing your seat, chat at the table, and come back for a rematch.
 No accounts or downloads required.
 
+[Play online](https://uno-online-three.vercel.app).
+
 ## Run locally
 
 Use Node.js 24. The Vercel project, CI, and development container use that version.
@@ -149,6 +151,21 @@ Live tests create unique rooms and leave their own seats in cleanup. They do not
 truncate hosted tables. Keep port 3100 free, run browser modes sequentially, and
 use a dedicated test/app project rather than another application's database.
 No test-only seed or delete endpoint is exposed by the app.
+
+To verify a deployed site, set its plain origin as BASE_URL. This skips the
+local web server and defaults to the durable Supabase expectation; no backend
+secret is needed on the browser-test client.
+
+```powershell
+$env:BASE_URL='https://uno-online-three.vercel.app'
+npm run test:e2e
+Remove-Item Env:BASE_URL
+```
+
+Direct verification reads retry at most three connection resets. HTTP error
+responses still fail their assertions immediately. Room creation is not retried
+by this test transport.
+
 
 See the [current Supabase verification notes](docs/supabase-verification.md) for
 actual local, CI and live results. [Earlier release notes](docs/verification.md)
