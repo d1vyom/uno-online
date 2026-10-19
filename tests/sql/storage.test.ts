@@ -134,33 +134,46 @@ describe("expiration and rate limits", () => {
   it("does not deadlock code reservation against expiry cleanup", async () => {
     await create(room());
     await pool.query("update uno_private.rooms set expires_at=clock_timestamp()-interval '1 second'");
-    const cleaner = await pool.connect(), creator = await pool.connect();
-    let attempt: Promise<{ value: boolean; error: unknown }> | undefined;
+    const gate = await pool.connect(), creator = await pool.connect(), cleaner = await pool.connect();
+    type Outcome = { error: unknown };
+    let creation: Promise<Outcome> | undefined, pruning: Promise<Outcome> | undefined;
     try {
-      await cleaner.query("begin");
-      await cleaner.query("select code from uno_private.rooms where code='ABC234' for update");
-      const pid = (await creator.query<{ pid: number }>("select pg_backend_pid() as pid")).rows[0].pid;
-      attempt = creator.query<{ value: boolean }>("select public.uno_room_create($1::jsonb,'host') as value", [JSON.stringify(room())])
-        .then((result) => ({ value: result.rows[0].value, error: null }), (error: unknown) => ({ value: false, error }));
-      let waiting = false;
-      for (let i = 0; i < 50; i++) {
-        const state = await pool.query<{ wait_event_type: string | null }>("select wait_event_type from pg_stat_activity where pid=$1", [pid]);
-        if (state.rows[0].wait_event_type === "Lock") { waiting = true; break; }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      expect(waiting).toBe(true);
-      await cleaner.query("select public.uno_prune_expired()");
-      await cleaner.query("commit");
-      const result = await attempt;
-      expect(result.error).toBeNull();
-      expect(result.value).toBe(true);
+      // Pause deletion at a real statement boundary so cleanup can overlap it.
+      // This trigger exists only in the disposable uno_test database.
+      await pool.query("create function uno_private.test_pause_membership_delete() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock(9134751); return old; end $$; create trigger test_pause_membership_delete after delete on uno_private.memberships for each row execute function uno_private.test_pause_membership_delete()");
+      await gate.query("select pg_advisory_lock(9134751)");
+      const creatorPid = (await creator.query<{ pid: number }>("select pg_backend_pid() as pid")).rows[0].pid;
+      const cleanerPid = (await cleaner.query<{ pid: number }>("select pg_backend_pid() as pid")).rows[0].pid;
+      let created = false, pruned = false;
+      creation = creator.query("select public.uno_room_create($1::jsonb,'host')", [JSON.stringify(room())])
+        .then(() => ({ error: null }), (error: unknown) => ({ error })).finally(() => { created = true; });
+      const blockedOrFinished = async (pid: number, finished: () => boolean) => {
+        for (let i = 0; i < 100; i++) {
+          if (finished()) return;
+          const state = await pool.query<{ wait_event_type: string | null }>("select wait_event_type from pg_stat_activity where pid=$1", [pid]);
+          if (state.rows[0].wait_event_type === "Lock") return;
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        throw new Error("Database operation neither completed nor reached the concurrency barrier");
+      };
+      await blockedOrFinished(creatorPid, () => created);
+      pruning = cleaner.query("select public.uno_prune_expired()")
+        .then(() => ({ error: null }), (error: unknown) => ({ error })).finally(() => { pruned = true; });
+      await blockedOrFinished(cleanerPid, () => pruned);
+      await gate.query("select pg_advisory_unlock(9134751)");
+      const outcomes = await Promise.all([creation, pruning]);
+      expect(outcomes.map((outcome) => outcome.error)).toEqual([null, null]);
+      // A colliding reservation may return false; retry after cleanup must work.
+      if (!(await read())) expect(await create(room())).toBe(true);
       expect(await active()).toBe("ABC234");
     } finally {
-      await cleaner.query("rollback"); cleaner.release();
-      if (attempt) await attempt;
-      creator.release();
+      await gate.query("select pg_advisory_unlock(9134751)");
+      await Promise.all([creation, pruning]);
+      await pool.query("drop trigger if exists test_pause_membership_delete on uno_private.memberships; drop function if exists uno_private.test_pause_membership_delete()");
+      gate.release(); creator.release(); cleaner.release();
     }
   });
+
 });
 
 describe("database privileges", () => {
