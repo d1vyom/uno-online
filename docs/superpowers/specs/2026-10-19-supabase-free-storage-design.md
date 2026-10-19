@@ -1,7 +1,7 @@
 # Supabase Free storage migration
 
 Date: 2026-10-19
-Status: Proposed specification for review; product implementation has not started.
+Status: Approved by the user on 2026-10-19; detailed implementation planning follows.
 Execution preference: Native execution in the current chat, retained from the user's earlier selection.
 
 ## Intent and boundaries
