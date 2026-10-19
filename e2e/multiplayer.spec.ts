@@ -1,11 +1,13 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { RoomSnapshot } from "../src/lib/server/types";
+import { cleanupGuests } from "./helpers/cleanup";
 
 test("four friends play a complete round, refresh, chat, and rematch", async ({ browser }, testInfo) => {
-  test.setTimeout(300_000);
+  test.setTimeout(process.env.UNO_E2E_STORE === "supabase" ? 600_000 : 300_000);
   const contexts: BrowserContext[] = [], pages: Page[] = [];
   const errors: string[] = [];
+  let ownedCode: string | undefined;
   try {
     for (let i = 0; i < 5; i++) {
       const context = await browser.newContext({ viewport: { width: 1365, height: 950 } });
@@ -18,6 +20,7 @@ test("four friends play a complete round, refresh, chat, and rematch", async ({ 
     await host.getByRole("button", { name: "Create a room" }).click();
     await expect(host).toHaveURL(/\/room\/[A-Z2-9]{6}$/);
     const code = host.url().split("/").at(-1)!;
+    ownedCode = code;
     for (let i = 1; i < 5; i++) {
       await pages[i].goto("/room/" + code);
       await pages[i].getByLabel("Your name").fill(["Alice", "Ben", "Cleo", "Dev", "Eve"][i]);
@@ -39,6 +42,9 @@ test("four friends play a complete round, refresh, chat, and rematch", async ({ 
       expect(response.status()).toBe(200); return response.json();
     }
     const initial = await Promise.all(contexts.slice(0, 4).map(snapshot));
+    const storage = process.env.UNO_E2E_STORE === "supabase" ? "supabase" : "memory";
+    expect(initial.every((view) => view.storageMode === storage)).toBe(true);
+    expect(await (await contexts[0].request.get("http://localhost:3100/api/health")).json()).toEqual({ status: "ok", storage, durable: storage === "supabase" });
     expect(new Set(initial.flatMap((s) => s.hand.map((c) => c.id))).size).toBe(28);
     expect(new Set(initial.map((s) => s.game?.topCard.id)).size).toBe(1);
     const byId = new Map(initial.map((s, i) => [s.myId, i]));
@@ -83,5 +89,8 @@ test("four friends play a complete round, refresh, chat, and rematch", async ({ 
     await host.getByRole("button", { name: "One more round" }).click();
     for (let i = 0; i < 4; i++) await expect(pages[i].getByRole("button", { name: "Ready up", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
-  } finally { await Promise.all(contexts.map((context) => context.close())); }
+  } finally {
+    try { await cleanupGuests(contexts.slice(0, 4), ownedCode); }
+    finally { await Promise.all(contexts.map((context) => context.close())); }
+  }
 });

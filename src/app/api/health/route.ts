@@ -5,6 +5,6 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return boundary(async () => {
     const store = getStore(); await store.read("health-check");
-    return json({ status: "ok", storage: store.mode, durable: store.mode === "redis" });
+    return json({ status: "ok", storage: store.mode, durable: store.mode === "supabase" });
   });
 }

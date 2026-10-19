@@ -17,7 +17,7 @@ export interface Room {
   phase: "lobby" | "playing" | "finished"; players: RoomPlayer[];
   game: GameState | null; winnerName: string | null; chat: ChatMessage[]; events: RoomEvent[];
   acceptedActions: { sessionHash: string; actionId: string }[];
-  storageMode: "redis" | "memory";
+  storageMode: "supabase" | "memory";
 }
 export interface RoomSnapshot {
   code: string; revision: number; hostId: string; myId: string; phase: Room["phase"];
@@ -28,7 +28,7 @@ export interface RoomSnapshot {
 }
 export interface MembershipChange { add?: string; remove?: string[] }
 export interface RoomStore {
-  mode: "memory" | "redis";
+  mode: "memory" | "supabase";
   read(code: string): Promise<Room | null>;
   create(room: Room, sessionHash: string): Promise<boolean>;
   commit(previousRevision: number, nextRoom: Room, membershipChange?: MembershipChange): Promise<boolean>;

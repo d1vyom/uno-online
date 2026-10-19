@@ -16,11 +16,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:redis": "vitest run tests/server/redis-store.test.ts",
-    "test:sql": "vitest run --config vitest.sql.config.ts"
+    "test:e2e:supabase": "node scripts/test-supabase-browser.mjs",
+    "test:sql": "vitest run --config vitest.sql.config.ts",
+    "test:supabase": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/server/supabase-integration.test.ts"
   },
   "dependencies": {
-    "@upstash/redis": "1.39.0",
+    "@supabase/supabase-js": "2.118.0",
     "next": "16.4.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",

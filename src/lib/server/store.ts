@@ -1,5 +1,5 @@
-import { Redis } from "@upstash/redis";
-import { createRedisStore } from "./redis-store";
+import { createClient } from "@supabase/supabase-js";
+import { createSupabaseStore } from "./supabase-store";
 import { ServiceError, type Room, type RoomStore } from "./types";
 const TTL = 86_400_000;
 
@@ -49,13 +49,16 @@ export function createMemoryStore(clock = Date.now): RoomStore {
 }
 
 const globalStore = globalThis as typeof globalThis & { unoMemoryStore?: RoomStore };
-let redisStore: RoomStore | undefined;
+let supabaseStore: RoomStore | undefined;
 export function getStore(): RoomStore {
-  if (process.env.VERCEL && process.env.UNO_STORE === "memory") throw new ServiceError("Memory rooms are disabled on Vercel. Configure Redis.", 503);
+  if (process.env.VERCEL && process.env.UNO_STORE === "memory") throw new ServiceError("Memory rooms are disabled on Vercel. Configure Supabase.", 503);
   if (process.env.UNO_STORE === "memory" && !process.env.VERCEL) {
     return globalStore.unoMemoryStore ??= createMemoryStore();
   }
-  const url = process.env.UPSTASH_REDIS_REST_URL, token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) throw new ServiceError("Multiplayer storage is not configured. Add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN; see the setup guide.", 503);
-  return redisStore ??= createRedisStore(new Redis({ url, token }));
+  const url = process.env.SUPABASE_URL, secret = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secret) throw new ServiceError("Multiplayer storage is not configured. Add SUPABASE_URL and SUPABASE_SECRET_KEY; see the setup guide.", 503);
+  if (!secret.startsWith("sb_secret_")) throw new ServiceError("Use a Supabase backend secret key (sb_secret_...), not a publishable key.", 503);
+  return supabaseStore ??= createSupabaseStore(createClient(url, secret, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  }));
 }

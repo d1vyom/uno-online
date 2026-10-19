@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { cleanupGuests } from "./helpers/cleanup";
 
 test("a delayed background heartbeat does not discard a guest's readiness click", async ({ page }) => {
   let release!: () => void;
@@ -14,7 +15,7 @@ test("a delayed background heartbeat does not discard a guest's readiness click"
     await expect.poll(() => intercepted).toBe(true);
     await page.getByRole("button", { name: "Ready up", exact: true }).click();
     await expect(page.getByRole("button", { name: "Not ready", exact: true })).toBeVisible();
-  } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+  } finally { release(); await page.unrouteAll({ behavior: "wait" }); await cleanupGuests([page.context()], page.url().split("/").at(-1)); }
 });
 
 test("a hanging snapshot times out and the same private seat recovers", async ({ page }) => {
@@ -32,17 +33,19 @@ test("a hanging snapshot times out and the same private seat recovers", async ({
     await expect(page.getByRole("heading", { name: "The table is out of reach." })).toBeVisible({ timeout: 16_000 });
     release();
     await expect(page.getByRole("button", { name: "Ready up", exact: true })).toBeVisible();
-  } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+  } finally { release(); await page.unrouteAll({ behavior: "wait" }); await cleanupGuests([page.context()], page.url().split("/").at(-1)); }
 });
 
 test("refresh and network recovery keep a private seat, then host departure transfers ownership", async ({ browser }) => {
   const hostContext = await browser.newContext(), guestContext = await browser.newContext();
+  let ownedCode: string | undefined;
   try {
     const host = await hostContext.newPage(), guest = await guestContext.newPage();
     await host.goto("/"); await host.getByLabel("Your name").fill("Host");
     await host.getByRole("button", { name: "Create a room" }).click();
     await expect(host).toHaveURL(/\/room\/[A-Z2-9]{6}$/);
     const url = host.url();
+    ownedCode = url.split("/").at(-1);
     await guest.goto(url); await guest.getByLabel("Your name").fill("Guest");
     await guest.getByRole("button", { name: "Join the room", exact: true }).click();
     await expect(guest.getByRole("button", { name: "Ready up", exact: true })).toBeVisible();
@@ -56,5 +59,8 @@ test("refresh and network recovery keep a private seat, then host departure tran
     await expect(host).toHaveURL("/");
     await expect(guest.getByRole("button", { name: "Start the game" })).toBeVisible();
     await expect(guest.getByRole("button", { name: "Start the game" })).toBeDisabled();
-  } finally { await hostContext.close(); await guestContext.close(); }
+  } finally {
+    try { await cleanupGuests([hostContext, guestContext], ownedCode); }
+    finally { await hostContext.close(); await guestContext.close(); }
+  }
 });

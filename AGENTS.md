@@ -1,7 +1,7 @@
 # Development workflow
 
 Always initialize new programming and development tasks using the Superpowers
-TDD and specification workflow. Keep production room state in shared Redis;
+TDD and specification workflow. Keep production room state in shared Supabase/Postgres;
 never enable the development memory adapter on Vercel.
 
 <!-- BEGIN:nextjs-agent-rules -->
