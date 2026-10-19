@@ -103,7 +103,7 @@ typecheck, 92 core tests, production build and audit (zero vulnerabilities).
 On final runtime commit 2b14d39, GitHub CI passed both the 22-case real
 PostgreSQL 17 job and the standard seven-browser verification job. All three
 live integration tests and all seven live Supabase browser tests passed again
-after the SDK status fix; the complete live suite took 4.3 minutes. There were
+after the SDK status fix; the complete live suite took 4.4 minutes. There were
 zero hosted rooms after cleanup. Final production client chunks (14 files)
 and tracked files contained neither the actual secret nor a browser SDK leak.
 
