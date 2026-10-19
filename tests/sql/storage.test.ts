@@ -131,6 +131,36 @@ describe("expiration and rate limits", () => {
       expect(await read()).not.toBeNull();
     } finally { await renewal.query("rollback"); renewal.release(); }
   });
+  it("does not deadlock code reservation against expiry cleanup", async () => {
+    await create(room());
+    await pool.query("update uno_private.rooms set expires_at=clock_timestamp()-interval '1 second'");
+    const cleaner = await pool.connect(), creator = await pool.connect();
+    let attempt: Promise<{ value: boolean; error: unknown }> | undefined;
+    try {
+      await cleaner.query("begin");
+      await cleaner.query("select code from uno_private.rooms where code='ABC234' for update");
+      const pid = (await creator.query<{ pid: number }>("select pg_backend_pid() as pid")).rows[0].pid;
+      attempt = creator.query<{ value: boolean }>("select public.uno_room_create($1::jsonb,'host') as value", [JSON.stringify(room())])
+        .then((result) => ({ value: result.rows[0].value, error: null }), (error: unknown) => ({ value: false, error }));
+      let waiting = false;
+      for (let i = 0; i < 50; i++) {
+        const state = await pool.query<{ wait_event_type: string | null }>("select wait_event_type from pg_stat_activity where pid=$1", [pid]);
+        if (state.rows[0].wait_event_type === "Lock") { waiting = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(waiting).toBe(true);
+      await cleaner.query("select public.uno_prune_expired()");
+      await cleaner.query("commit");
+      const result = await attempt;
+      expect(result.error).toBeNull();
+      expect(result.value).toBe(true);
+      expect(await active()).toBe("ABC234");
+    } finally {
+      await cleaner.query("rollback"); cleaner.release();
+      if (attempt) await attempt;
+      creator.release();
+    }
+  });
 });
 
 describe("database privileges", () => {
