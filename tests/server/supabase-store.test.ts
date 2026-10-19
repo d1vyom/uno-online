@@ -13,7 +13,7 @@ function adapter(value: unknown, status = 200) {
   const requests: { url: string; body: unknown }[] = [];
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     requests.push({ url: String(input), body: JSON.parse(String(init?.body ?? "null")) });
-    return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+    return new Response(value === undefined ? null : JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   });
   const client = createClient("https://example.supabase.co", "sb_secret_contract-test", { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   return { store: createSupabaseStore(client), requests };
@@ -28,6 +28,12 @@ describe("Supabase RPC boundary", () => {
   it("distinguishes an absent room from a database error", async () => {
     expect(await adapter(null).store.read("ABC234")).toBeNull();
     await expect(adapter({ message: "permission denied", code: "42501" }, 403).store.read("ABC234")).rejects.toMatchObject({ status: 503 });
+  });
+  it.each([404, 204])("rejects an empty HTTP %i instead of reporting an absent room", async (status) => {
+    await expect(adapter(undefined, status).store.read("ABC234")).rejects.toMatchObject({ status: 503 });
+  });
+  it.each([404, 204])("rejects an empty HTTP %i instead of reporting no membership", async (status) => {
+    await expect(adapter(undefined, status).store.activeRoom("host")).rejects.toMatchObject({ status: 503 });
   });
   it("reads the stored room without exposing an SDK response envelope", async () => {
     const value = stored(), { store, requests } = adapter(value);

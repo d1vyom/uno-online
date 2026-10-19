@@ -27,7 +27,7 @@ tests do not require that extension.
   member removal, numeric codes, expiry, limits, bounded cleanup, locked renewal,
   anonymous denial, backend execution, and migration replay.
 - Adapter/configuration RED: 27 failures against the unimplemented adapter and
-  old configuration. GREEN: 86 local tests passed after migration.
+  old configuration. GREEN: 86 local tests passed after migration, increasing to 92 after final-review regressions.
 - Live Supabase: all three dedicated-project integration tests passed, exercising
   independent clients, a competing fifth-seat join, duplicate draw retry, private
   hands, numeric codes and guest-authorized cleanup.
@@ -44,11 +44,11 @@ project; tracked migration filenames match its actual migration history.
 All seven standard production browser tests passed: a complete four-player
 round, refresh, chat, rematch, fifth-seat rejection, mobile accessibility,
 held heartbeat, hanging snapshot recovery, offline recovery and host transfer.
-The same full-round browser journey passed against the real Supabase project
-with four isolated guests; the test asserted durable Supabase health and
+All seven journeys also passed against the real Supabase project, including a
+full round with four isolated guests; the test asserted durable Supabase health and
 storageMode, private hands and guest-authorized cleanup.
 
-A clean npm ci, lint, strict types and 86 core tests passed; npm audit reported
+A clean npm ci, lint, strict types and 92 core tests passed; npm audit reported
 zero vulnerabilities. The production build also passed with both Supabase
 configuration variables explicitly empty, overriding .env.local.
 
@@ -73,6 +73,25 @@ The performance advisor flagged the new rate-limit expiry index as unused
 ([unused-index notice](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)).
 It is retained for bounded expiry scans as the table grows; the newly provisioned
 small database has not yet needed an indexed scan.
+
+## Final review
+
+A fresh whole-branch review found no Critical issue and one Important SDK
+boundary issue: empty upstream 404/204 responses could be normalized to null,
+which looked like an absent room or healthy storage. Six new real-SDK regression
+cases failed before the fix. The adapter now requires HTTP 200 for scalar RPCs;
+all 92 core tests pass, preserving legitimate HTTP 200 JSON null and false.
+
+One Minor improvement is deferred: if the missing-room browser test's initial
+leave request itself fails, that test does not retry guest cleanup in a finally
+block. The test targets only its own newly created room, which expires after
+24 hours; normal runs left zero rooms and memberships.
+
+Execution rulings: real PostgreSQL 17 CI supplied SQL RED/GREEN because local
+Postgres/Docker was unavailable; platform Cron is a separate migration so those
+core tests stay portable. Provider-generated migration versions determine the
+tracked filenames. No application implementation or approval was delegated;
+one fresh reviewer assessed the whole branch.
 
 ## Verification boundaries
 

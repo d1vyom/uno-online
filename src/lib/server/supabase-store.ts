@@ -4,8 +4,10 @@ import { ServiceError, type RoomStore } from "./types";
 export function createSupabaseStore(client: SupabaseClient): RoomStore {
   async function call<T>(name: string, args: Record<string, unknown>, parse: (data: unknown) => T): Promise<T> {
     try {
-      const { data, error } = await client.rpc(name, args).abortSignal(AbortSignal.timeout(8_000));
-      if (error) throw error;
+      const { data, error, status } = await client.rpc(name, args).abortSignal(AbortSignal.timeout(8_000));
+      // Scalar RPCs return HTTP 200, including an explicit JSON null. The SDK
+      // normalizes some empty upstream 404s to 204 without an error object.
+      if (error || status !== 200) throw error ?? new Error("Unexpected RPC status.");
       return parse(data);
     } catch {
       throw new ServiceError("Multiplayer storage is unavailable. Check the Supabase connection and schema setup.", 503);

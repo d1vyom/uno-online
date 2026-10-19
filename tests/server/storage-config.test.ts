@@ -12,6 +12,13 @@ describe("production storage selection", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: "ok", storage: "supabase", durable: true });
   });
+  it.each([404, 204])("does not report healthy storage for an empty HTTP %i", async (status) => {
+    vi.stubGlobal("fetch", async () => new Response(null, { status }));
+    const { GET } = await import("@/app/api/health/route");
+    const response = await GET();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error).toMatch(/unavailable/i);
+  });
   it("returns actionable 503 when configuration is missing", async () => {
     vi.stubEnv("SUPABASE_SECRET_KEY", undefined);
     const { GET } = await import("@/app/api/health/route"); const response = await GET();
