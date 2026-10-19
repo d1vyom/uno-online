@@ -93,6 +93,20 @@ core tests stay portable. Provider-generated migration versions determine the
 tracked filenames. No application implementation or approval was delegated;
 one fresh reviewer assessed the whole branch.
 
+## Publication and final verification
+
+The reviewed implementation was fast-forwarded into main and pushed under the
+existing user authorization. GitHub resolves the commit author to d1vyom.
+The merged D:/Projects/uno-online checkout passed a fresh npm ci, lint,
+typecheck, 92 core tests, production build and audit (zero vulnerabilities).
+
+On final runtime commit 2b14d39, GitHub CI passed both the 22-case real
+PostgreSQL 17 job and the standard seven-browser verification job. All three
+live integration tests and all seven live Supabase browser tests passed again
+after the SDK status fix; the complete live suite took 4.3 minutes. There were
+zero hosted rooms after cleanup. Final production client chunks (14 files)
+and tracked files contained neither the actual secret nor a browser SDK leak.
+
 ## Verification boundaries
 
 Live Supabase database verification and a Vercel-hosted deployment are different

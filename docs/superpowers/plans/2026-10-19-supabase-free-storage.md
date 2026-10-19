@@ -1,6 +1,6 @@
 # Supabase Free Storage Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan natively, task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan natively, task by task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace Upstash with Supabase Free while preserving the existing four-player game, guest privacy, and Vercel deployability.
 
@@ -10,7 +10,7 @@
 
 **Spec:** [Approved Supabase design](../specs/2026-10-19-supabase-free-storage-design.md).
 
-**Execution method:** Native, already selected by the user. Review of this written plan is the remaining prerequisite before product implementation.
+**Execution method:** Native, approved by the user. Implementation and verification completed; code integrated and pushed to main. The unavailable-credentials fallback was not needed because the dedicated free project and secret were configured.
 
 ## Global Constraints
 
@@ -74,18 +74,18 @@ The SQL commit function derives removals from the old and proposed player sets. 
 
 **Interfaces:** Produce the six RPC functions above and private rooms, memberships, and rate_limits tables. Other tasks consume their exact names, arguments and result types.
 
-- [ ] Establish an isolated worktree and codex/supabase-free-storage branch using the worktree skill; record the plan-scoped ledger and baseline checks.
-- [ ] Discover Supabase CLI commands with --help, initialize local configuration, and generate the empty uno_storage migration. Add pinned pg and its types for tests; no production SQL connection dependency is introduced.
-- [ ] Implement the SQL test harness: connect only to an explicitly configured uno_test database; bootstrap Supabase role names only in that disposable database; apply the tracked migration; use independent connections for races; close every pool/client in finally hooks.
-- [ ] Add the PostgreSQL 17 CI service with POSTGRES_DB=uno_test and a health check, and expose TEST_DATABASE_URL only to SQL tests. If local Docker/Postgres is unavailable, use this feature-branch CI service to observe SQL RED/GREEN; do not claim memory tests prove SQL correctness.
-- [ ] Write `creates one room for one session atomically`: concurrent create calls with different room codes and the same session must produce exactly one true result, one room, and one membership. Run `npm run test:sql`; verify RED because the empty migration has not created the RPC, then implement private tables, indexes, RLS and creation logic to GREEN.
-- [ ] Add RED cases for code collisions, expired reads, numeric-only active codes, and room deletion cascading memberships. Implement read/active-room behavior and verify GREEN.
-- [ ] Add RED cases for competing same-revision updates and last-seat proposals: exactly one commit succeeds, the winning revision/state is retained, at most four players exist, and the losing write leaves no membership behind. Implement row-locked CAS and transaction rollback; verify GREEN.
-- [ ] Add RED cases for two rooms racing to add one session, mismatched added-session arguments, duplicate session membership in proposed state, stale revisions, and deleting an empty room. Use deterministic locking/uniqueness guarantees; verify GREEN without a global lock.
-- [ ] Add RED expiration/rate tests: refreshed activity extends the deadline by 24 hours, expired data is inaccessible immediately, fixed-window counters permit exactly the configured maximum, and invalid window/limit inputs are rejected. Implement UPSERT-based limits and verify GREEN.
-- [ ] Add RED cleanup tests: expired rooms/memberships and rate rows are deleted in batches of at most 500; active rooms survive; a locked expired row being renewed is skipped and survives after renewal. Implement bounded cleanup with consistent locks and verify GREEN.
-- [ ] Add RED security tests: anon/authenticated cannot select private tables or execute any backend RPC; service_role can execute the intended functions; every definer has an empty search_path; a second application of the migration preserves data and does not restore public privileges. Implement explicit revokes/grants and verify GREEN.
-- [ ] Run the complete real SQL suite, record the actual RED/GREEN results and CI/local source of execution, then commit `feat: add protected transactional Supabase storage`.
+- [x] Establish an isolated worktree and codex/supabase-free-storage branch using the worktree skill; record the plan-scoped ledger and baseline checks.
+- [x] Discover Supabase CLI commands with --help, initialize local configuration, and generate the empty uno_storage migration. Add pinned pg and its types for tests; no production SQL connection dependency is introduced.
+- [x] Implement the SQL test harness: connect only to an explicitly configured uno_test database; bootstrap Supabase role names only in that disposable database; apply the tracked migration; use independent connections for races; close every pool/client in finally hooks.
+- [x] Add the PostgreSQL 17 CI service with POSTGRES_DB=uno_test and a health check, and expose TEST_DATABASE_URL only to SQL tests. If local Docker/Postgres is unavailable, use this feature-branch CI service to observe SQL RED/GREEN; do not claim memory tests prove SQL correctness.
+- [x] Write `creates one room for one session atomically`: concurrent create calls with different room codes and the same session must produce exactly one true result, one room, and one membership. Run `npm run test:sql`; verify RED because the empty migration has not created the RPC, then implement private tables, indexes, RLS and creation logic to GREEN.
+- [x] Add RED cases for code collisions, expired reads, numeric-only active codes, and room deletion cascading memberships. Implement read/active-room behavior and verify GREEN.
+- [x] Add RED cases for competing same-revision updates and last-seat proposals: exactly one commit succeeds, the winning revision/state is retained, at most four players exist, and the losing write leaves no membership behind. Implement row-locked CAS and transaction rollback; verify GREEN.
+- [x] Add RED cases for two rooms racing to add one session, mismatched added-session arguments, duplicate session membership in proposed state, stale revisions, and deleting an empty room. Use deterministic locking/uniqueness guarantees; verify GREEN without a global lock.
+- [x] Add RED expiration/rate tests: refreshed activity extends the deadline by 24 hours, expired data is inaccessible immediately, fixed-window counters permit exactly the configured maximum, and invalid window/limit inputs are rejected. Implement UPSERT-based limits and verify GREEN.
+- [x] Add RED cleanup tests: expired rooms/memberships and rate rows are deleted in batches of at most 500; active rooms survive; a locked expired row being renewed is skipped and survives after renewal. Implement bounded cleanup with consistent locks and verify GREEN.
+- [x] Add RED security tests: anon/authenticated cannot select private tables or execute any backend RPC; service_role can execute the intended functions; every definer has an empty search_path; a second application of the migration preserves data and does not restore public privileges. Implement explicit revokes/grants and verify GREEN.
+- [x] Run the complete real SQL suite, record the actual RED/GREEN results and CI/local source of execution, then commit `feat: add protected transactional Supabase storage`.
 
 ## Task 2: Replace the production adapter and prove its HTTP contracts
 
@@ -93,13 +93,13 @@ The SQL commit function derives removals from the old and proposed player sets. 
 
 **Interfaces:** Consume Task 1 RPCs. Produce a RoomStore with mode=supabase; the room service consumes the same methods and booleans as before. The Supabase administrative client uses persistSession=false, autoRefreshToken=false and detectSessionInUrl=false.
 
-- [ ] Install a current pinned supabase-js version after checking current documentation/changelog. Write `returns a numeric-only membership code as text`, `read distinguishes null from an RPC error`, and `boolean writes reject malformed responses`. Exercise the actual SDK against complete controlled REST responses; run `npm test -- tests/server/supabase-store.test.ts` to RED.
-- [ ] Implement createSupabaseStore(client: SupabaseClient): RoomStore with exact named RPC arguments and server-side result guards. Missing/null/malformed write results and all RPC/network errors become ServiceError status 503; a legitimate false result remains a CAS/uniqueness conflict. Verify GREEN.
-- [ ] Add RED read-result cases for wrong schema version, invalid code/revision/player structure, and a returned room that does not match the requested code. Validate the stored room boundary without weakening existing player-specific projection.
-- [ ] Add RED configuration/health cases: missing URL/secret gives actionable 503; memory is rejected whenever VERCEL is set; a healthy Supabase connection reports storage=supabase/durable=true; local memory remains durable=false; database failure never selects memory.
-- [ ] Update store selection, mode types and health to GREEN. Use SUPABASE_URL and SUPABASE_SECRET_KEY only on the server; no NEXT_PUBLIC_ secret or client database integration.
-- [ ] Remove Upstash packages, adapter, conditional Redis suites and test:redis. Add test:sql and test:supabase commands. Keep SQL tests explicit/mandatory in CI and live RPC tests conditional on actual credentials.
-- [ ] Run lint, strict types, all core/SQL tests and build; ensure the build succeeds with Supabase variables absent. Commit `feat: migrate multiplayer persistence to Supabase`.
+- [x] Install a current pinned supabase-js version after checking current documentation/changelog. Write `returns a numeric-only membership code as text`, `read distinguishes null from an RPC error`, and `boolean writes reject malformed responses`. Exercise the actual SDK against complete controlled REST responses; run `npm test -- tests/server/supabase-store.test.ts` to RED.
+- [x] Implement createSupabaseStore(client: SupabaseClient): RoomStore with exact named RPC arguments and server-side result guards. Missing/null/malformed write results and all RPC/network errors become ServiceError status 503; a legitimate false result remains a CAS/uniqueness conflict. Verify GREEN.
+- [x] Add RED read-result cases for wrong schema version, invalid code/revision/player structure, and a returned room that does not match the requested code. Validate the stored room boundary without weakening existing player-specific projection.
+- [x] Add RED configuration/health cases: missing URL/secret gives actionable 503; memory is rejected whenever VERCEL is set; a healthy Supabase connection reports storage=supabase/durable=true; local memory remains durable=false; database failure never selects memory.
+- [x] Update store selection, mode types and health to GREEN. Use SUPABASE_URL and SUPABASE_SECRET_KEY only on the server; no NEXT_PUBLIC_ secret or client database integration.
+- [x] Remove Upstash packages, adapter, conditional Redis suites and test:redis. Add test:sql and test:supabase commands. Keep SQL tests explicit/mandatory in CI and live RPC tests conditional on actual credentials.
+- [x] Run lint, strict types, all core/SQL tests and build; ensure the build succeeds with Supabase variables absent. Commit `feat: migrate multiplayer persistence to Supabase`.
 
 ## Task 3: Configure free-project maintenance and verify hosted storage
 
@@ -107,13 +107,13 @@ The SQL commit function derives removals from the old and proposed player sets. 
 
 **Interfaces:** Consume Tasks 1–2. Configure exactly one job named uno-expiry-cleanup, schedule `*/15 * * * *`, calling public.uno_prune_expired(). Do not change another application's schema or jobs.
 
-- [ ] Inspect the connected account/organization and current free-project allowance. Create a dedicated UNO Online project only if the operation is confirmed free; otherwise record the external prerequisite and continue local work. Never pause/delete unrelated projects or choose a paid plan.
-- [ ] Apply the reviewed core migration to the dedicated project. Retrieve/configure the project's modern backend secret only through approved project tooling or the user's local configuration; never print it or commit it. Run a test read and verify the health endpoint against that database.
-- [ ] Enable supported pg_cron and implement the maintenance script. Reapply it and query cron.job: exactly one active uno-expiry-cleanup job must exist. Limit retained history for this job to seven days without deleting other jobs' records; use the same maintenance SQL snippet for app cleanup and its own history pruning.
-- [ ] Write live integration tests with unique test-owned codes/session hashes: independent adapters share state; competing fourth/fifth joins leave four seats; concurrent CAS commits do not lose state; the same draw action ID draws once; a leave frees membership; numeric room codes rejoin correctly. Run against the dedicated database and clean only owned rooms in finally hooks.
-- [ ] Verify actual anonymous/authenticated RPC denial and schema privacy; run Supabase security/performance advisors and resolve migration-introduced findings. Record provider-level limitations separately from application defects.
-- [ ] Confirm cleanup can be invoked and reports bounded counts; verify scheduling configuration and actual role grants. Do not describe scheduled execution as observed unless a job-run record confirms it.
-- [ ] If provisioning/credentials are unavailable, retain explicitly conditional live tests and precise setup instructions. Do not substitute another project or report hosted tests as passed. Commit `docs: configure Supabase Free deployment and maintenance` with the associated integration coverage.
+- [x] Inspect the connected account/organization and current free-project allowance. Create a dedicated UNO Online project only if the operation is confirmed free; otherwise record the external prerequisite and continue local work. Never pause/delete unrelated projects or choose a paid plan.
+- [x] Apply the reviewed core migration to the dedicated project. Retrieve/configure the project's modern backend secret only through approved project tooling or the user's local configuration; never print it or commit it. Run a test read and verify the health endpoint against that database.
+- [x] Enable supported pg_cron and implement the maintenance script. Reapply it and query cron.job: exactly one active uno-expiry-cleanup job must exist. Limit retained history for this job to seven days without deleting other jobs' records; use the same maintenance SQL snippet for app cleanup and its own history pruning.
+- [x] Write live integration tests with unique test-owned codes/session hashes: independent adapters share state; competing fourth/fifth joins leave four seats; concurrent CAS commits do not lose state; the same draw action ID draws once; a leave frees membership; numeric room codes rejoin correctly. Run against the dedicated database and clean only owned rooms in finally hooks.
+- [x] Verify actual anonymous/authenticated RPC denial and schema privacy; run Supabase security/performance advisors and resolve migration-introduced findings. Record provider-level limitations separately from application defects.
+- [x] Confirm cleanup can be invoked and reports bounded counts; verify scheduling configuration and actual role grants. Do not describe scheduled execution as observed unless a job-run record confirms it.
+- [x] If provisioning/credentials are unavailable, retain explicitly conditional live tests and precise setup instructions. Do not substitute another project or report hosted tests as passed. Commit `docs: configure Supabase Free deployment and maintenance` with the associated integration coverage.
 
 ## Task 4: Verify four-player play and publish the completed migration
 
@@ -121,14 +121,14 @@ The SQL commit function derives removals from the old and proposed player sets. 
 
 **Interfaces:** Existing browser journeys remain unchanged in their user-facing assertions. An explicit UNO_E2E_STORE=supabase opt-in selects the real backend; default CI browser mode remains the existing local memory adapter. Hosted test credentials are server-only.
 
-- [ ] Add acceptance coverage for explicit storage-mode selection and cleanup of only the test's known rooms through their guest cookies. Do not introduce seed/debug endpoints or production-accessible cleanup RPCs for tests.
-- [ ] Run the existing production browser suite against the migrated app: four private hands, readiness, full game, chat, refresh, rematch, fifth-seat rejection, mobile/a11y, offline recovery, held-heartbeat actions, hung snapshots, and host transfer must remain GREEN.
-- [ ] When the dedicated Supabase project is available, run the same production browser flow with UNO_E2E_STORE=supabase. Verify the backend reports durable storage and a second adapter/process reads the same room. Exercise leave cleanup in finally hooks, including failing-test paths.
-- [ ] Update README and .env.example to current Supabase setup, one-time SQL/maintenance installation, free-tier inactivity/quotas, Node.js 24 and Vercel settings. Update AGENTS.md's Redis-only line to shared Supabase/Postgres. Preserve historical release documents and clearly point to current Supabase verification.
-- [ ] Run a clean npm ci, lint, typecheck, all core tests, mandatory real SQL tests, conditional live RPC tests when configured, production build, audit and production browser suite. Inspect the client bundle for accidental SDK/secret inclusion and inspect current health/error responses.
-- [ ] Use verification-before-completion and requesting-code-review skills for one fresh final whole-branch review. Reproduce material findings as failing regressions, fix them natively, and rerun affected checks plus the full project suite.
-- [ ] Commit, integrate into main using the existing authorization, push without force, verify the remote SHA/author and CI results, and archive the temporary managed worktree after preserving needed artifacts.
-- [ ] Report the Supabase migration, actual local/CI/live results, free-project configuration status, and any remaining external deployment step. Claim a Vercel-hosted round only if exercised on a real deployment URL.
+- [x] Add acceptance coverage for explicit storage-mode selection and cleanup of only the test's known rooms through their guest cookies. Do not introduce seed/debug endpoints or production-accessible cleanup RPCs for tests.
+- [x] Run the existing production browser suite against the migrated app: four private hands, readiness, full game, chat, refresh, rematch, fifth-seat rejection, mobile/a11y, offline recovery, held-heartbeat actions, hung snapshots, and host transfer must remain GREEN.
+- [x] When the dedicated Supabase project is available, run the same production browser flow with UNO_E2E_STORE=supabase. Verify the backend reports durable storage and a second adapter/process reads the same room. Exercise leave cleanup in finally hooks, including failing-test paths.
+- [x] Update README and .env.example to current Supabase setup, one-time SQL/maintenance installation, free-tier inactivity/quotas, Node.js 24 and Vercel settings. Update AGENTS.md's Redis-only line to shared Supabase/Postgres. Preserve historical release documents and clearly point to current Supabase verification.
+- [x] Run a clean npm ci, lint, typecheck, all core tests, mandatory real SQL tests, conditional live RPC tests when configured, production build, audit and production browser suite. Inspect the client bundle for accidental SDK/secret inclusion and inspect current health/error responses.
+- [x] Use verification-before-completion and requesting-code-review skills for one fresh final whole-branch review. Reproduce material findings as failing regressions, fix them natively, and rerun affected checks plus the full project suite.
+- [x] Commit, integrate into main using the existing authorization, push without force, verify the remote SHA/author and CI results, and archive the temporary managed worktree after preserving needed artifacts.
+- [x] Report the Supabase migration, actual local/CI/live results, free-project configuration status, and any remaining external deployment step. Claim a Vercel-hosted round only if exercised on a real deployment URL.
 
 ## Plan self-review
 
