@@ -167,7 +167,8 @@ responses still fail their assertions immediately. Room creation is not retried
 by this test transport.
 
 
-See the [current Supabase verification notes](docs/supabase-verification.md) for
+See the [production deployment verification](docs/vercel-verification.md) and
+the [current Supabase verification notes](docs/supabase-verification.md) for
 actual local, CI and live results. [Earlier release notes](docs/verification.md)
 describe the historical Redis implementation.
 

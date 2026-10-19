@@ -2,6 +2,7 @@
 
 Specification and implementation plan dated 2026-10-19; Native execution.
 This is the current storage release. Earlier Redis notes are historical.
+Hosted deployment was subsequently verified; see [production verification](vercel-verification.md).
 
 ## Free project and configuration
 
